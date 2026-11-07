@@ -1257,8 +1257,9 @@ function downloadCsv() {
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })); a.download = "실험카드.csv"; a.click();
 }
 // 금액 산출식: 카드에 수식이 없으면 카드의 '예상 효과'(현재 → 처방 후) 금액으로 바로 표시
-function basisOf(c) {
-  if (isFormula(c)) return c.basis;
+function basisOf(c) {      // 짧은 식만: 예상 추가 매출 = 처방 후 − 현재
+  const f = /\$([\d,]+) − (?:현재 )?\$([\d,]+) = ([+−]\$[\d,]+)/.exec(c.basis || "");
+  if (f) return `예상 추가 매출 = 처방 후 $${f[1]} − 현재 $${f[2]} = ${f[3]}`;
   const m = /\$([\d,]+) → \$([\d,]+) \(([+−-])\$([\d,]+)\)/.exec(c.효과 || "");
   return m ? `예상 추가 매출 = 처방 후 $${m[2]} − 현재 $${m[1]} = ${m[3] === "+" ? "+" : "−"}$${m[4]}` : "";
 }
