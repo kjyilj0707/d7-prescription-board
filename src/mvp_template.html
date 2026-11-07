@@ -1256,6 +1256,12 @@ function downloadCsv() {
   const csv = "﻿" + ["game", "quad", "at", ...FIELDS].map(esc).join(",") + "\n" + store.map(c => ["game", "quad", "at", ...FIELDS].map(k => esc(c[k])).join(",")).join("\n");
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })); a.download = "실험카드.csv"; a.click();
 }
+// 금액 산출식: 카드에 수식이 없으면 카드의 '예상 효과'(현재 → 처방 후) 금액으로 바로 표시
+function basisOf(c) {
+  if (isFormula(c)) return c.basis;
+  const m = /\$([\d,]+) → \$([\d,]+) \(([+−-])\$([\d,]+)\)/.exec(c.효과 || "");
+  return m ? `예상 추가 매출 = 처방 후 $${m[2]} − 현재 $${m[1]} = ${m[3] === "+" ? "+" : "−"}$${m[4]}` : "";
+}
 function renderSaved() {
   $("#cardCount").textContent = DIAGS.length ? `(${DIAGS.length})` : "";
   renderHistory();
@@ -1263,7 +1269,7 @@ function renderSaved() {
   const gainOf = c => { if (typeof c.gain === "number") return c.gain; const m = /\(([+−-])\$([\d,]+)\)/.exec(c.효과 || ""); return m ? (m[1] === "+" ? 1 : -1) * +m[2].replace(/,/g, "") : -Infinity; };
   const ranked = store.slice().sort((a, b) => gainOf(b) - gainOf(a));
   $("#saved").innerHTML = tools + (store.length ? ranked.map((c, i) => `<article>
-      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b><span class="rank-no">${i + 1}순위</span>${Number.isFinite(gainOf(c)) ? `<span class="rank-gain ${gainOf(c) < 0 ? "neg" : ""}">${gainOf(c) < 0 ? "예상 매출 감소 " : "예상 추가 매출 "}${gainOf(c) >= 0 ? "+" : "−"}${usd(Math.abs(gainOf(c)))}</span>` : ""} ${chip(c.quad)} <span class="num">${c.game}</span> · ${(c.처방 || c.레버 || "").replace(/</g, "&lt;")}</b><span class="rank-basis">(${(c.basis || "예전 저장 카드 · 처방 단독 실행 시 예상").replace(/</g, "&lt;")})</span><span class="muted" style="font-size:12px">${c.at} <button data-cp="${c.id}">복사</button> <button data-del="${c.id}" aria-label="삭제">삭제</button></span></div>
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b><span class="rank-no">${i + 1}순위</span>${Number.isFinite(gainOf(c)) ? `<span class="rank-gain ${gainOf(c) < 0 ? "neg" : ""}">${gainOf(c) < 0 ? "예상 매출 감소 " : "예상 추가 매출 "}${gainOf(c) >= 0 ? "+" : "−"}${usd(Math.abs(gainOf(c)))}</span>` : ""} ${chip(c.quad)} <span class="num">${c.game}</span> · ${(c.처방 || c.레버 || "").replace(/</g, "&lt;")}</b>${basisOf(c) ? `<span class="rank-basis">(${basisOf(c).replace(/</g, "&lt;")})</span>` : ""}<span class="muted" style="font-size:12px">${c.at} <button data-cp="${c.id}">복사</button> <button data-del="${c.id}" aria-label="삭제">삭제</button></span></div>
       <dl>${FIELDS.filter(f => f !== "대상" && f !== "처방").map(f => `<dt>${LABELS[f]}</dt><dd style="white-space:pre-line">${(c[f] || "").replace(/</g, "&lt;")}</dd>`).join("")}</dl></article>`).join("")
     : `<p class="muted">아직 저장한 카드가 없어요. ① 게임 진단에서 처방을 고르고 「선택한 처방으로 실험카드 만들기」를 눌러 보세요.</p>`);
   $("#saved").querySelectorAll("[data-del]").forEach(b => b.onclick = () => { store = store.filter(c => String(c.id) !== b.dataset.del); saveStore(); renderSaved(); });
