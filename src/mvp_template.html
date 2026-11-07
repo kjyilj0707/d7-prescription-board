@@ -26,6 +26,7 @@
   --q-green-soft: #18321f; --q-blue-soft: #1a2738; --q-yellow-soft: #33290f; --q-red-soft: #3a211c; --q-gray-soft: #222b32;
   color-scheme: dark; }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 14px; line-height: 1.55; margin: 0; }
 .wrap { max-width: 1240px; margin: 0 auto; padding-block: 18px 48px;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
@@ -124,13 +125,36 @@ tbody tr { cursor: pointer; } tbody tr:hover { background: var(--accent-soft); }
 .tag { font-size: 11px; font-weight: 700; color: var(--surface); background: var(--accent); border-radius: 4px; padding: 1px 6px; margin-left: 6px; }
 .pos2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .src { font-size: 12px; color: var(--muted); }
+.steps { display: flex; gap: 6px; list-style: none; margin: 0; padding: 0; flex-wrap: wrap; }
+.steps li { flex: 1 1 140px; padding: 8px 12px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+.steps li.on { border-color: var(--accent); color: var(--accent); font-weight: 700; background: var(--accent-soft); }
+.steps li.done { color: var(--ink); }
+.pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.pick button { text-align: left; padding: 12px 14px; display: grid; gap: 2px; }
+.pick button small { color: var(--muted); font-size: 12px; }
+.pick button.on { border: 2px solid var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; padding: 6px 14px; }
+.seg button.on { background: var(--accent); color: var(--surface); font-weight: 700; }
+.ctls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 22px; }
+.ctl { display: grid; gap: 6px; min-width: 0; }
+.ctl .lab { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 13px; }
+.ctl .lab b { font-family: var(--mono); font-size: 16px; }
+.ctl .hint { font-size: 11px; color: var(--muted); }
+.ctl input[type=range] { width: 100%; accent-color: var(--accent); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button { padding: 5px 12px; border-radius: 999px; font-size: 13px; }
+.chips button.on { background: var(--accent); border-color: var(--accent); color: var(--surface); font-weight: 700; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.sum { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+@media (max-width: 640px) { .ctls { grid-template-columns: 1fr; } }
 @media (max-width: 900px) { .diag { grid-template-columns: 1fr; } }
 @media (max-width: 560px) { .fgrid, .pos2 { grid-template-columns: 1fr; } .sol { grid-template-columns: 22px minmax(0, 1fr); } .sol .money { grid-column: 2; text-align: left; } }
 </style>
 
 <div class="wrap">
   <header class="top">
-    <div class="brand"><h1>D7 처방 보드</h1><small>게임 D7 데이터를 넣으면, 무엇을 하면 90일 매출이 얼마나 될지 알려 드려요 · 앵날다쏘 4조</small></div>
+    <div class="brand"><h1>D7 처방 보드</h1><small>게임 유형 → D7 지표 → 처방별 예상 90일 매출 · 앵날다쏘 4조</small></div>
     <nav class="tabs" aria-label="화면">
       <a href="#diag" data-v="diag">① 게임 진단</a>
       <a href="#board" data-v="board">② 전체 게임 비교</a>
@@ -139,34 +163,28 @@ tbody tr { cursor: pointer; } tbody tr:hover { background: var(--accent-soft); }
   </header>
 
   <section id="v-diag" hidden>
-    <div class="diag">
-      <form class="panel" id="form" autocomplete="off">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between">
-          <h2>게임 D7 데이터</h2>
-          <label class="fld" style="min-width:220px"><span>예시 게임 불러오기</span><select id="exSel"></select></label>
-        </div>
-        <div class="fgroup"><h3>게임 기본 정보 · 비교 셀을 정해요</h3>
-          <div class="fgrid">
-            <label class="fld"><span>장르</span><select id="i_genre"></select></label>
-            <label class="fld"><span>과금 방식</span><select id="i_mm"><option>Free</option><option>Freemium</option><option>Paid</option><option>Subscription</option></select></label>
-            <label class="fld"><span>퍼블리셔 규모</span><select id="i_pub"></select></label>
-            <label class="fld"><span>주 지역</span><select id="i_reg"></select></label>
-            <label class="fld"><span>멀티플레이</span><select id="i_mp"></select></label>
-            <div class="fld"><span>수익화 구조</span><div class="toggles"><label><input type="checkbox" id="i_ads"> 광고</label><label><input type="checkbox" id="i_iap"> 인앱결제</label></div></div>
-          </div></div>
-        <div class="fgroup"><h3>D7 지표 · 품질과 마케팅을 진단해요</h3>
-          <div class="fgrid">
-            <label class="fld"><span>초기 마케팅비 ($)</span><input type="number" id="i_mkt" min="1" step="1"></label>
-            <label class="fld"><span>충돌률 (%)</span><input type="number" id="i_crash" min="0" step="0.01"></label>
-            <label class="fld"><span>세션 길이 (분)</span><input type="number" id="i_sess" min="0.1" step="0.1"></label>
-            <label class="fld"><span>하루 세션 수 (회)</span><input type="number" id="i_daily" min="0.1" step="0.01"></label>
-            <label class="fld"><span>업데이트 간격 (일)</span><input type="number" id="i_upd" min="1" step="1"></label>
-            <label class="fld"><span>출시 전 위시리스트 (건)</span><input type="number" id="i_wish" min="1" step="1"></label>
-            <label class="fld"><span>앱 용량 (MB)</span><input type="number" id="i_apk" min="1" step="1"></label>
-          </div></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="primary" type="submit">진단하기</button><button type="button" id="resetEx">예시로 되돌리기</button></div>
-        <p class="src" id="formNote"></p>
-      </form>
+    <ol class="steps" id="steps"><li data-s="1">① 게임 유형</li><li data-s="2">② D7 지표 입력</li><li data-s="3">③ 진단 결과 · 솔루션</li></ol>
+
+    <div class="panel" id="s1">
+      <div><h2>어떤 게임인가요?</h2><p class="muted">장르와 수익화 방식을 고르면, 비슷한 게임끼리 비교해서 진단해요.</p></div>
+      <h3>장르</h3><div class="pick" id="pGenre"></div>
+      <h3>수익화 방식</h3><div class="pick" id="pMm"></div>
+      <div class="actions"><button class="primary" id="to2" disabled>다음: D7 지표 입력 →</button>
+        <span class="muted" style="font-size:13px">또는</span><select id="exSel" aria-label="시연 게임 바로 보기"></select></div>
+    </div>
+
+    <div class="panel" id="s2" hidden>
+      <div class="actions" style="justify-content:space-between">
+        <div class="sum"><h2>D7 지표 입력</h2><span class="chip c-b" id="s2type"></span><button id="back1" style="padding:3px 10px;font-size:12px">유형 바꾸기</button></div>
+        <div class="seg" role="group" aria-label="입력 방식"><button id="mDial" class="on">🎛 다이얼</button><button id="mType">⌨ 직접 입력</button></div>
+      </div>
+      <div class="fgroup"><h3>수익화 구조 · 게임 정보</h3><div class="ctls" id="catCtls"></div></div>
+      <div class="fgroup"><h3>D7 지표 <span class="muted" id="cellHint" style="font-weight:400"></span></h3><div class="ctls" id="numCtls"></div></div>
+      <div class="actions"><button id="back1b">← 이전</button><button class="primary" id="to3">진단하기 →</button><span class="src" id="formNote"></span></div>
+    </div>
+
+    <div id="s3" hidden style="display:grid;gap:14px">
+      <div class="actions"><button id="back2">← 지표 수정</button><button id="restart">처음부터</button><span class="muted" id="s3type" style="font-size:13px"></span></div>
       <div id="result" style="display:grid;gap:14px;min-width:0"></div>
     </div>
   </section>
@@ -360,33 +378,81 @@ $("#more").addEventListener("click", () => { shown += 60; renderList(filtered())
 const EXC = ENG.example_cols;
 const EX = Object.fromEntries(ENG.examples.map(r => { const o = Object.fromEntries(EXC.map((c, i) => [c, r[i]])); return [o.game_id, o]; }));
 const IN = id => document.getElementById(id);
-function fillLevels() {
-  const L = ENG.levels;
-  IN("i_genre").innerHTML = L.genre.map(v => `<option>${v}</option>`).join("");
-  IN("i_pub").innerHTML = L.publisher_tier.map(v => `<option>${v}</option>`).join("");
-  IN("i_reg").innerHTML = L.region_focus.map(v => `<option>${v}</option>`).join("");
-  IN("i_mp").innerHTML = L.multiplayer_support.map(v => `<option>${v}</option>`).join("");
-  const demo = ENG.demo.map(id => `<option value="${id}">${id} (${(BY[id] || {})["사분면"] || ""} 시연용)</option>`).join("");
-  IN("exSel").innerHTML = `<option value="">직접 입력</option><optgroup label="시연 게임">${demo}</optgroup>`;
+const DEFAULT = { ads: true, iap: true, pub: "Indie", reg: "US", mp: "Online", sess: 20, daily: 2, crash: 4.5, upd: 60, wish: 900, apk: 300, mkt: 4000 };  // example_game.json
+let S = { genre: null, mm: null, ...DEFAULT };
+let loadedId = null, dirty = true, lastDiag = null, step = 1, mode = "dial";
+const MM_DESC = { Free: "무료", Freemium: "기본 무료 + 유료 아이템", Paid: "한 번 구매", Subscription: "월 구독" };
+const NUM = [
+  { k: "mkt", label: "초기 마케팅비", unit: "$", min: 25, max: 1500000, log: true, d: 0 },
+  { k: "sess", label: "세션 길이", unit: "분", min: 2, max: 55, d: 1, med: "sess" },
+  { k: "daily", label: "하루 세션 수", unit: "회", min: 0.4, max: 8, d: 2, med: "daily" },
+  { k: "crash", label: "충돌률", unit: "%", min: 0, max: 10, d: 2, med: "crash" },
+  { k: "upd", label: "업데이트 간격", unit: "일", min: 2, max: 115, d: 0, med: "upd" },
+  { k: "wish", label: "출시 전 위시리스트", unit: "건", min: 11, max: 64210, log: true, d: 0 },
+  { k: "apk", label: "앱 용량", unit: "MB", min: 11, max: 5240, log: true, d: 0 },
+];
+const CAT = [
+  { k: "pub", label: "퍼블리셔 규모", lv: () => ENG.levels.publisher_tier },
+  { k: "reg", label: "주 지역", lv: () => ENG.levels.region_focus },
+  { k: "mp", label: "멀티플레이", lv: () => ENG.levels.multiplayer_support },
+];
+const toPos = (n, v) => n.log ? Math.round(Math.log(v / n.min) / Math.log(n.max / n.min) * 1000) : Math.round((v - n.min) / (n.max - n.min) * 1000);
+const fromPos = (n, p) => { const v = n.log ? n.min * Math.pow(n.max / n.min, p / 1000) : n.min + (n.max - n.min) * p / 1000; const m = Math.pow(10, n.d); return Math.round(v * m) / m; };
+const fmtN = (n, v) => n.unit === "$" ? usd(v) : (n.d ? (+v).toFixed(n.d) : Math.round(v).toLocaleString()) + " " + n.unit;
+function chanOf() { return S.ads && S.iap ? "광고+IAP" : S.ads ? "광고만" : S.iap ? "IAP만" : "없음"; }
+function cellOf() { const c = `${S.genre} × ${chanOf()}`; return ENG.small.includes(c) ? `${chanOf()} (전체)` : c; }
+function median(arr) { return arr.length ? arr[Math.floor(arr.length / 2)] : null; }
+function markDirty() { dirty = true; IN("formNote").textContent = loadedId ? "값을 바꿔서 매출은 팀 내부 회귀 모델로 계산해요" : ""; }
+
+function setStep(n) {
+  step = n; ["s1", "s2", "s3"].forEach((id, i) => IN(id).hidden = i + 1 !== n);
+  document.querySelectorAll("#steps li").forEach(li => { const s = +li.dataset.s; li.classList.toggle("on", s === n); li.classList.toggle("done", s < n); });
+  if (n === 2) renderStep2();
+  if (n === 3) { renderDiag(); IN("s3type").textContent = `${S.genre} · ${S.mm} · ${chanOf()}`; }
+  window.scrollTo(0, 0);
 }
-let loadedId = null, dirty = false, lastDiag = null;
+function renderStep1() {
+  IN("pGenre").innerHTML = ENG.levels.genre.map(g => `<button type="button" data-v="${g}" class="${S.genre === g ? "on" : ""}">${g}</button>`).join("");
+  IN("pMm").innerHTML = ["Free", "Freemium", "Paid", "Subscription"].map(m => `<button type="button" data-v="${m}" class="${S.mm === m ? "on" : ""}">${m}<small>${MM_DESC[m]}</small></button>`).join("");
+  IN("pGenre").querySelectorAll("button").forEach(b => b.onclick = () => { S.genre = b.dataset.v; markDirty(); renderStep1(); });
+  IN("pMm").querySelectorAll("button").forEach(b => b.onclick = () => { S.mm = b.dataset.v; markDirty(); renderStep1(); });
+  IN("to2").disabled = !(S.genre && S.mm);
+}
+function renderStep2() {
+  IN("s2type").textContent = `${S.genre} · ${S.mm}`;
+  IN("mDial").classList.toggle("on", mode === "dial"); IN("mType").classList.toggle("on", mode === "type");
+  const tog = (k, lab) => `<button type="button" data-tog="${k}" class="${S[k] ? "on" : ""}">${S[k] ? "✓ " : ""}${lab}</button>`;
+  IN("catCtls").innerHTML = `<div class="ctl"><div class="lab"><span>수익화 구조 (광고 · 인앱결제)</span><b style="font-size:13px">${chanOf()}</b></div><div class="chips">${tog("ads", "광고")}${tog("iap", "인앱결제")}</div>
+      <span class="hint">${(S.mm === "Free" || S.mm === "Freemium") && !S.ads && !S.iap ? "⚠️ 무료 게임에 수익 수단이 없으면 매출 0으로 진단돼요" : "비교 셀: " + cellOf()}</span></div>` +
+    CAT.map(c => mode === "dial"
+      ? `<div class="ctl"><div class="lab"><span>${c.label}</span></div><div class="chips">${c.lv().map(v => `<button type="button" data-cat="${c.k}" data-v="${v}" class="${S[c.k] === v ? "on" : ""}">${v}</button>`).join("")}</div></div>`
+      : `<label class="ctl"><div class="lab"><span>${c.label}</span></div><select data-catsel="${c.k}">${c.lv().map(v => `<option ${S[c.k] === v ? "selected" : ""}>${v}</option>`).join("")}</select></label>`).join("");
+  const C = ENG.cells[cellOf()];
+  IN("cellHint").textContent = C ? `· 회색 글씨 = 비교 셀(${cellOf()}) 중앙값` : "";
+  IN("numCtls").innerHTML = NUM.map(n => {
+    const medv = n.k === "mkt" && C ? median(C.m) : (n.med && C ? C[n.med] : null);
+    const hint = medv != null ? `<span class="hint">비슷한 게임 중앙값 ${fmtN(n, medv)}</span>` : `<span class="hint">&nbsp;</span>`;
+    return mode === "dial"
+      ? `<div class="ctl"><div class="lab"><span>${n.label}</span><b id="v_${n.k}">${fmtN(n, S[n.k])}</b></div><input type="range" min="0" max="1000" value="${toPos(n, S[n.k])}" data-num="${n.k}" aria-label="${n.label}">${hint}</div>`
+      : `<label class="ctl"><div class="lab"><span>${n.label} (${n.unit})</span></div><input type="number" step="any" min="0" value="${S[n.k]}" data-numin="${n.k}">${hint}</label>`;
+  }).join("");
+  IN("catCtls").querySelectorAll("[data-tog]").forEach(b => b.onclick = () => { S[b.dataset.tog] = !S[b.dataset.tog]; markDirty(); renderStep2(); });
+  IN("catCtls").querySelectorAll("[data-cat]").forEach(b => b.onclick = () => { S[b.dataset.cat] = b.dataset.v; markDirty(); renderStep2(); });
+  IN("catCtls").querySelectorAll("[data-catsel]").forEach(s => s.onchange = () => { S[s.dataset.catsel] = s.value; markDirty(); });
+  IN("numCtls").querySelectorAll("[data-num]").forEach(r => r.oninput = () => { const n = NUM.find(x => x.k === r.dataset.num); S[n.k] = fromPos(n, +r.value); IN("v_" + n.k).textContent = fmtN(n, S[n.k]); markDirty(); });
+  IN("numCtls").querySelectorAll("[data-numin]").forEach(i => i.oninput = () => { const v = parseFloat(i.value); if (Number.isFinite(v)) { S[i.dataset.numin] = v; markDirty(); } });
+}
 function loadExample(id) {
   const e = EX[id]; if (!e) return;
-  loadedId = id; dirty = false;
-  IN("i_genre").value = e.genre; IN("i_mm").value = e.monetization_model; IN("i_pub").value = e.publisher_tier;
-  IN("i_reg").value = e.region_focus; IN("i_mp").value = e.multiplayer_support;
-  IN("i_ads").checked = e.contains_ads === "Yes"; IN("i_iap").checked = e.has_in_app_purchases === "Yes";
-  IN("i_mkt").value = e.marketing_spend_usd ?? ""; IN("i_crash").value = e.crash_rate_pct ?? ""; IN("i_sess").value = e.avg_session_minutes;
-  IN("i_daily").value = e.avg_daily_sessions; IN("i_upd").value = e.update_frequency_days; IN("i_wish").value = e.wishlist_prelaunch; IN("i_apk").value = e.apk_size_mb;
-  const opt = [...IN("exSel").options].find(o => o.value === id);
-  if (!opt) IN("exSel").insertAdjacentHTML("beforeend", `<option value="${id}">${id}</option>`);
-  IN("exSel").value = id;
+  S = { genre: e.genre, mm: e.monetization_model, ads: e.contains_ads === "Yes", iap: e.has_in_app_purchases === "Yes", pub: e.publisher_tier, reg: e.region_focus,
+        mp: e.multiplayer_support, sess: e.avg_session_minutes, daily: e.avg_daily_sessions, crash: e.crash_rate_pct, upd: e.update_frequency_days,
+        wish: e.wishlist_prelaunch, apk: e.apk_size_mb, mkt: e.marketing_spend_usd };
+  loadedId = id; dirty = false; IN("formNote").textContent = "";
 }
-function readForm() {
-  const n = id => { const v = parseFloat(IN(id).value); return Number.isFinite(v) ? v : null; };
-  return { genre: IN("i_genre").value, mm: IN("i_mm").value, pub: IN("i_pub").value, reg: IN("i_reg").value, mp: IN("i_mp").value,
-    ads: IN("i_ads").checked, iap: IN("i_iap").checked, mkt: n("i_mkt"), crash: n("i_crash"), sess: n("i_sess"), daily: n("i_daily"),
-    upd: n("i_upd"), wish: n("i_wish"), apk: n("i_apk") };
+function readForm() { return { ...S }; }
+function fillLevels() {
+  const demo = ENG.demo.map(id => `<option value="${id}">${id} ${(BY[id] || {})["사분면"] || ""}</option>`).join("");
+  IN("exSel").innerHTML = `<option value="">시연 게임 바로 보기</option>${demo}`;
 }
 const GEN_PT = ["Casual", "Puzzle", "RPG", "Racing", "Simulation", "Sports", "Strategy"];
 function feats(f, ch, withMk) {
@@ -442,8 +508,9 @@ function verdictOf(d) {
 }
 function renderDiag() {
   const f = readForm();
-  const need = ["mkt", "sess", "daily", "upd", "wish", "apk"].filter(k => f[k] == null || f[k] <= 0 && k !== "mkt");
-  if (need.length) { IN("result").innerHTML = `<div class="panel"><p>세션 길이·하루 세션 수·업데이트 간격·위시리스트·앱 용량을 입력해 주세요. 마케팅비가 없으면 예산 진단은 보류돼요.</p></div>`; return; }
+  const need = ["sess", "daily", "upd", "wish", "apk"].filter(k => !(f[k] > 0));
+  if (!f.genre || !f.mm) { IN("result").innerHTML = `<div class="panel"><p>① 게임 유형에서 장르와 수익화 방식을 먼저 골라 주세요.</p></div>`; return; }
+  if (need.length) { IN("result").innerHTML = `<div class="panel"><p>세션 길이·하루 세션 수·업데이트 간격·위시리스트·앱 용량은 0보다 커야 해요. ② D7 지표 입력에서 확인해 주세요.</p></div>`; return; }
   const d = diagnose(f); lastDiag = d;
   if (d.zero) { IN("result").innerHTML = `<div class="hero"><p class="verdict">⚠️ 무료 게임인데 광고도 인앱결제도 없어요 → 데이터 규칙상 <b>90일 매출 $0</b>이에요.</p><p>먼저 <b>광고 또는 인앱결제 도입</b>을 검토하세요. (수익 수단이 생기면 다시 진단)</p></div>`; return; }
   const r = d.rec, after = r && d.cur != null ? r.after : null;
@@ -470,7 +537,7 @@ function renderDiag() {
       <p class="src">매출: ${srcTxt} · 처방 효과: 팀 품질 모델 계수(장르별 플레이타임 기울기 포함)·마케팅 탄력성 0.555 기준 · 상관 기반 예상치이며 인과 효과가 아님</p>
     </div>
     <div class="panel"><h2>처방별 예상 90일 매출</h2><div class="sols">${solRows}${allRow}</div>
-      <div><button class="primary" id="mkCard">추천 처방으로 실험카드 만들기</button></div></div>
+      <div class="actions"><button class="primary" id="mkCard">추천 처방으로 실험카드 만들기</button><button id="tweak">지표 바꿔서 다시 보기</button></div></div>
     <div class="panel"><h2>왜 이런 진단인가</h2>
       <div class="pos2">
         <div>품질 백분위 <b class="num">${f1(d.qp)}</b> <span class="muted">(비슷한 게임 중, 높을수록 좋음)</span><div class="gauge"><i style="width:${d.qp}%"></i><em></em></div></div>
@@ -480,14 +547,19 @@ function renderDiag() {
       <p class="src">품질 = 마케팅비를 뺀 D7 지표로 예측한 매출(팀 선형회귀, train 교차적합)을 같은 셀 train 게임 안에서 줄 세운 순위 · 위시리스트·앱 용량·퍼블리셔·지역도 품질 점수에 들어가지만 운영으로 바꾸기 어려워 처방에서 제외</p>
     </div>`;
   IN("mkCard").addEventListener("click", () => go("cards"));
+  IN("tweak").addEventListener("click", () => setStep(2));
 }
 function initDiag() {
-  fillLevels();
-  IN("exSel").addEventListener("change", e => { if (e.target.value) { loadExample(e.target.value); renderDiag(); } else { loadedId = null; dirty = true; } });
-  IN("form").addEventListener("input", e => { if (e.target.id !== "exSel") { dirty = true; IN("formNote").textContent = loadedId ? "값을 바꿔서 매출은 최종 모델 근사식으로 계산해요" : ""; } });
-  IN("form").addEventListener("submit", e => { e.preventDefault(); renderDiag(); });
-  IN("resetEx").addEventListener("click", () => { if (loadedId) { loadExample(loadedId); IN("formNote").textContent = ""; renderDiag(); } });
-  loadExample(ENG.demo[0] || "REV4_005578"); renderDiag();
+  fillLevels(); renderStep1();
+  IN("to2").onclick = () => setStep(2);
+  IN("back1").onclick = IN("back1b").onclick = () => { renderStep1(); setStep(1); };
+  IN("to3").onclick = () => setStep(3);
+  IN("back2").onclick = () => setStep(2);
+  IN("restart").onclick = () => { S = { genre: null, mm: null, ...DEFAULT }; loadedId = null; dirty = true; IN("exSel").value = ""; renderStep1(); setStep(1); };
+  IN("mDial").onclick = () => { mode = "dial"; renderStep2(); };
+  IN("mType").onclick = () => { mode = "type"; renderStep2(); };
+  IN("exSel").onchange = e => { if (e.target.value) { loadExample(e.target.value); renderStep1(); setStep(3); } };
+  setStep(1);
 }
 
 // ---------- ③ 실험카드 ----------
@@ -534,7 +606,7 @@ function renderSaved() {
   $("#saved").querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => { store = store.filter(c => String(c.id) !== b.dataset.del); saveStore(); renderSaved(); }));
 }
 
-function go(view, id) { if (id && view === "diag" && EX[id]) { loadExample(id); renderDiag(); } location.hash = view; show(view); }
+function go(view, id) { if (id && view === "diag" && EX[id]) { loadExample(id); renderStep1(); setStep(3); } location.hash = view; show(view); }
 function show(view) {
   view = ["diag", "board", "cards"].includes(view) ? view : "diag";
   ["diag", "board", "cards"].forEach(v => $("#v-" + v).hidden = v !== view);
