@@ -1169,7 +1169,7 @@ function paintResult() {
   IN("result").querySelectorAll("[data-tgt]").forEach(r => { r.onchange = () => { const k = r.dataset.tgt; if (k === "예산") SIM[k].pct = +r.value; else SIM[k].target = +r.value; SIM[k].on = true; paintResult(); };
     r.oninput = () => { const k = r.dataset.tgt, v = +r.value; IN("tv_" + k).textContent = k === "예산" ? `${v > 0 ? "+" : ""}${v}%` : k === "충돌률" ? v.toFixed(2) + "%" : Math.round(v) + (k === "플레이타임" ? "분" : "일"); }; });
   IN("mkCard").onclick = () => go("cards");
-  IN("saveDiag").onclick = saveDiagnosis;
+  IN("saveDiag").onclick = () => saveDiagnosis(false);
   IN("tweak").onclick = () => setStep(2);
 }
 function initDiag() {
@@ -1230,7 +1230,7 @@ function saveDiags() { try { localStorage.setItem("d7diags", JSON.stringify(DIAG
 let pendingSim = null;
 const SOL_DESC = (d, k) => k === "예산" ? `광고비 ${SIM.예산.pct > 0 ? "+" : ""}${SIM.예산.pct}%`
   : k === "충돌률" ? `충돌률 ${d.crash.toFixed(2)}% → ${(+SIM[k].target).toFixed(2)}%` : k === "플레이타임" ? `플레이타임 ${Math.round(d.play)}분 → ${Math.round(SIM[k].target)}분` : `업데이트 ${Math.round(d.f.upd)}일 → ${Math.round(SIM[k].target)}일`;
-function saveDiagnosis(silent) {
+function saveDiagnosis(silent = false) { silent = silent === true;
   const d = lastDiag; if (!d || d.zero) return;
   const R = simCalc(d), key = JSON.stringify(S), prev = DIAGS.find(x => x.key === key);
   const name = prev ? prev.name : (MINE.find(m => m.key === key) || {}).name || `내 게임 ${nextNo()}`;
