@@ -370,7 +370,7 @@ tbody tr { cursor: pointer; } tbody tr:hover { background: var(--layer); }
         <select id="fQuad" aria-label="사분면"></select>
         <select id="fGrade" aria-label="등급"><option value="">등급 전체</option><option>고</option><option>중</option><option>저</option><option>판단 보류</option></select>
         <input type="text" id="fId" placeholder="게임 ID 검색" aria-label="게임 ID 검색">
-        <select id="fSort" aria-label="우선순위 기준"><option value="team">우선순위: 팀 점수 (품질 × 마케팅 여유)</option><option value="gap">우선순위: 심각성 (품질·마케팅비 불균형)</option><option value="impact">우선순위: 영향도 × 실행 가능성</option></select>
+        <select id="fSort" aria-label="우선순위 기준"><option value="team">우선순위: 처방 시 예상 추가 매출 (팀 모델)</option><option value="gap">우선순위: 심각성 (품질·마케팅비 불균형)</option><option value="impact">우선순위: 영향도 × 실행 가능성</option></select>
         <span class="muted" id="fCount"></span>
       </div>
     </div>
@@ -430,7 +430,8 @@ const FEASW = { "충돌률": 1.0, "예산": 0.9, "업데이트": 0.7, "플레이
 const sortFn = () => { const v = $("#fSort").value;
   if (v === "impact") return (a, b) => impactScore(b) - impactScore(a);
   if (v === "gap") return (a, b) => Math.abs(b["불균형"] ?? 0) - Math.abs(a["불균형"] ?? 0) || (b["예상추가매출"] || 0) - (a["예상추가매출"] || 0);
-  return (a, b) => (b["우선순위점수"] ?? -1) - (a["우선순위점수"] ?? -1); };
+  const key = g => (g.mine ? g["솔루션"] === "유지" : g["우선순위"] == null) ? -Infinity : (g["예상추가매출"] || 0);
+  return (a, b) => key(b) - key(a); };
 const impactScore = g => (g["예상추가매출"] || 0) * (FEASW[g["솔루션"]] ?? 0);
 const usd = v => v == null ? "–" : "$" + Math.round(v).toLocaleString("en-US");
 const f1 = v => v == null ? "–" : (+v).toFixed(1);
@@ -483,10 +484,11 @@ function openSolution(m) {
 function mineRow() {
   const m = MINE[mineIdx]; if (!m || !m.d || m.d.zero) return null;
   const d = m.d, f = d.f, e = ENG.elasticity, sol = d.rec ? d.rec.k : "유지";
-  const add = sol === "예산" ? d.cur * (Math.pow(1.5, e) - 1) : d.rec ? d.cur * (d.rec.mult - 1) : 0;
+  const add = d.prio != null ? d.prio : sol === "예산" ? d.cur * (Math.pow(1.5, e) - 1) : d.rec ? d.cur * (d.rec.mult - 1) : 0;
+  const allRank = sol === "유지" ? null : G.filter(g => g["우선순위"] != null && g.game_id !== mineSkip() && (g["예상추가매출"] || 0) > add).length + 1;
   return { mine: true, game_id: m.name, genre: f.genre, monetization_model: f.mm, "채널": d.ch, "비교셀": d.ref, "사분면": d.quad, "등급": d.grade, "솔루션": sol,
     "예상추가매출": add, marketing_spend_usd: f.mkt > 0 ? f.mkt : null, pred_usd: d.cur, roas: f.mkt > 0 ? d.cur / f.mkt : null, "한계roas": d.mroas,
-    "품질_pct": d.qp, "마케팅_pct": d.mp, "불균형": d.gap, "우선순위점수": d.score,
+    "품질_pct": d.qp, "마케팅_pct": d.mp, "불균형": d.gap, "우선순위점수": d.score, "전체순위": allRank,
     crash_rate_pct: d.crash, med_crash_rate_pct: d.C.crash, playtime: d.play, med_playtime: d.C.play, update_frequency_days: f.upd, med_update_frequency_days: d.C.upd };
 }
 function nearOf(m, n) {
@@ -531,7 +533,7 @@ function renderMine() {
       <button class="btn" type="button" id="mineSol">처방과 예상 매출 보기 <span class="ar">→</span></button></div>
     <p style="font-size:17px">${chip(d.quad)} <span style="margin-left:6px">${QNAME[d.quad]} → <b>${next}</b></span></p>
     <div class="strips">${strips}</div>
-    <p class="muted" style="font-size:12px">회색 눈금 = 비슷한 게임 ${peers.length.toLocaleString()}개 · 세로선 = 중간값 · 파란 점 = 내 게임 · 등급 ${d.grade}${d.score != null ? ` · 팀 점수 ${d.score.toFixed(2)}` : ""}</p>
+    <p class="muted" style="font-size:12px">회색 눈금 = 비슷한 게임 ${peers.length.toLocaleString()}개 · 세로선 = 중간값 · 파란 점 = 내 게임 · 등급 ${d.grade}${d.prio != null ? ` · 처방 시 예상 추가 매출 ${d.prio >= 0 ? "+" : "−"}${usd(Math.abs(d.prio))} (팀 모델)` : ""}</p>
     ${near.length ? `<div style="display:grid;gap:8px"><span class="muted" style="font-size:12px">그래프에서 가장 가까운 기존 게임 (누르면 그 게임 진단)</span><div class="mine-near">${near.map(g => `<button type="button" data-id="${g.game_id}"><span class="num">${g.game_id}</span>${chip(g["사분면"])}<span class="num">${usd(g.pred_usd)}</span></button>`).join("")}</div></div>` : ""}
     ${MINE.length > 1 ? `<div class="mine-hist"><span class="muted" style="font-size:12px;align-self:center">입력한 게임:</span>${MINE.map((x, i) => `<button type="button" data-mi="${i}" class="${i === mineIdx ? "on" : ""}">${x.name}</button>`).join("")}</div>` : ""}`;
   $("#mineSol").onclick = () => openSolution(m);
@@ -591,14 +593,14 @@ function renderList(rows) {
     const fn = sortFn(); let k = rows.findIndex(g => fn(me, g) <= 0); if (k < 0) k = rows.length;
     rows = [...rows.slice(0, k), me, ...rows.slice(k)]; rank = k + 1; if (k >= shown) shown = k + 10;
   }
-  $("#mineRank").innerHTML = rank ? `<i class="qd" style="background:var(--accent)"></i> <b>${me.game_id}</b> (내 게임) = 이 목록 ${rows.length.toLocaleString()}개 중 <b>${rank}위</b> · 파란 줄` : me ? `<span class="muted">내 게임은 지금 필터 조건 밖이에요</span>` : "";
-  const head = `<thead><tr><th></th><th>게임</th><th>장르</th><th>광고/IAP</th><th>사분면</th><th>등급</th><th>처방 (현재 → 셀 중앙값)</th><th class="r">예상 추가 매출</th><th class="r">마케팅비</th><th class="r">예측 90일 매출</th><th class="r">예측 ROAS</th><th class="r">품질</th><th class="r">마케팅</th><th class="r">불균형</th><th class="r">점수</th></tr></thead>`;
+  $("#mineRank").innerHTML = rank ? `<i class="qd" style="background:var(--accent)"></i> <b>${me.game_id}</b> (내 게임) = 이 목록 ${rows.length.toLocaleString()}개 중 <b>${rank}위</b>${me["전체순위"] ? ` · 전체 신작 ${ENG.rank_n.toLocaleString()}개 중 ${me["전체순위"]}위` : ""} · 처방 시 예상 추가 매출 ${me["예상추가매출"] >= 0 ? "+" : "−"}${usd(Math.abs(me["예상추가매출"]))} · 파란 줄` : me ? `<span class="muted">내 게임은 지금 필터 조건 밖이에요</span>` : "";
+  const head = `<thead><tr><th></th><th>게임</th><th>장르</th><th>광고/IAP</th><th>사분면</th><th>등급</th><th>처방 (현재 → 셀 중앙값)</th><th class="r">예상 추가 매출</th><th class="r">마케팅비</th><th class="r">예측 90일 매출</th><th class="r">예측 ROAS</th><th class="r">품질</th><th class="r">마케팅</th><th class="r">불균형</th><th class="r">전체 순위</th></tr></thead>`;
   const body = rows.slice(0, shown).map(g => `<tr data-id="${g.mine ? "__mine" : g.game_id}" class="${g.mine ? "me-row" : ""}">
     <td><input type="checkbox" aria-label="${g.game_id} 비교 선택" ${g.mine ? "checked disabled" : selected.has(g.game_id) ? "checked" : ""}></td>
     <td class="num">${g.game_id}${g.mine ? ' <span class="tag">내 게임</span>' : ""}</td><td>${g.genre}</td><td>${g["채널"]}</td><td>${chip(g["사분면"])}</td><td><span class="grade">${g["등급"]}</span></td>
     <td>${improveText(g)}</td><td class="r">${g["예상추가매출"] ? "+" + usd(g["예상추가매출"]) : "–"}</td>
     <td class="r">${usd(g.marketing_spend_usd)}</td><td class="r">${usd(g.pred_usd)}</td><td class="r">${f1(g.roas)}</td><td class="r">${f1(g["품질_pct"])}</td><td class="r">${f1(g["마케팅_pct"])}</td>
-    <td class="r">${g["불균형"] == null ? "–" : (g["불균형"] > 0 ? "+" : "") + f1(g["불균형"])}</td><td class="r">${g["우선순위점수"] == null ? "–" : (+g["우선순위점수"]).toFixed(3)}</td></tr>`).join("");
+    <td class="r">${g["불균형"] == null ? "–" : (g["불균형"] > 0 ? "+" : "") + f1(g["불균형"])}</td><td class="r">${g.mine ? (g["전체순위"] ? g["전체순위"] + "위" : "–") : g["우선순위"] == null ? "–" : g["우선순위"] + "위"}</td></tr>`).join("");
   $("#list").innerHTML = head + "<tbody>" + body + "</tbody>";
   $("#more").hidden = rows.length <= shown;
   $("#list").querySelectorAll("tbody tr").forEach(tr => {
@@ -625,7 +627,7 @@ function renderCompare() {
   $("#compare").innerHTML = `<h3>선택한 게임 비교 (${sel.length}개${sel.length < 3 ? " · 3개 이상 권장" : ""})</h3>
     <div class="tbl"><table><thead><tr><th>순위</th><th>게임</th><th>수익화 구조</th><th>사분면</th><th class="r">마케팅비</th><th class="r">품질</th><th class="r">마케팅</th><th class="r">한계 ROAS</th><th>처방 (현재 → 목표)</th><th class="r">예상 추가 매출</th><th class="r">실행 가능성</th></tr></thead><tbody>
     ${sel.map((g, i) => `<tr data-id="${g.mine ? "__mine" : g.game_id}" class="${g.mine ? "me-row" : ""}"><td class="num">${i + 1}</td><td class="num">${g.game_id}${g.mine ? ' <span class="tag">내 게임</span>' : ""}</td><td>${g.genre} · ${g["채널"]}</td><td>${chip(g["사분면"])}</td><td class="r">${usd(g.marketing_spend_usd)}</td><td class="r">${f1(g["품질_pct"])}</td><td class="r">${f1(g["마케팅_pct"])}</td><td class="r">${f1(g["한계roas"])}</td><td>${improveText(g)}</td><td class="r">${g["예상추가매출"] ? "+" + usd(g["예상추가매출"]) : "–"}</td><td class="r">${(FEASW[g["솔루션"]] ?? 0).toFixed(1)}</td></tr>`).join("")}
-    </tbody></table></div><p class="muted" style="font-size:12px">순위 기준: ${{ team: "팀 우선순위 점수(품질 × 마케팅 여유)", gap: "심각성(품질·마케팅비 불균형)", impact: "영향도(예상 추가 매출) × 실행 가능성" }[sv]}</p><ol class="reason">${sel.map(g => `<li>${reasonOf(g)}</li>`).join("")}</ol>
+    </tbody></table></div><p class="muted" style="font-size:12px">순위 기준: ${{ team: "처방 시 예상 추가 매출(팀 모델)", gap: "심각성(품질·마케팅비 불균형)", impact: "영향도(예상 추가 매출) × 실행 가능성" }[sv]}</p><ol class="reason">${sel.map(g => `<li>${reasonOf(g)}</li>`).join("")}</ol>
     <div><button id="clearSel">선택 해제</button></div>`;
   $("#compare").querySelectorAll("tbody tr").forEach(tr => tr.addEventListener("click", () => tr.dataset.id === "__mine" ? openSolution(MINE[mineIdx]) : go("diag", tr.dataset.id)));
   $("#clearSel").addEventListener("click", () => { selected.clear(); renderBoard(false); });
@@ -634,7 +636,7 @@ function renderBoard(resetShown = true) {
   if (resetShown) shown = 40;
   const rows = filtered();
   $("#fCount").textContent = `${rows.length.toLocaleString()}개`;
-  $("#sortNote").textContent = { team: "정렬: 팀 우선순위 점수 = 품질 백분위 × (1 − 마케팅비 백분위) · 품질 좋고 덜 쓴 게임 먼저 · 체크해서 비교",
+  $("#sortNote").textContent = { team: "정렬: 처방을 실행했을 때 팀 모델이 예상하는 추가 매출이 큰 순 (유지 게임은 맨 아래) · 체크해서 비교",
     gap: "정렬: 불균형 |품질 − 마케팅비| 큰 순 (두 축이 어긋날수록 먼저) · 체크해서 비교",
     impact: "정렬: 예상 추가 매출 × 실행 가능성 (핫픽스 1.0 · 예산 0.9 · 업데이트 0.7 · 플레이타임 0.6, 팀 가정) · 체크해서 비교" }[$("#fSort").value];
   renderMine(); renderTiles(rows); renderScatter(rows); renderList(rows); renderCompare();
@@ -826,7 +828,27 @@ function diagnose(f) {
   else if (quad === "🔵" && mroas < floor) why = `광고비를 더 써도 추가 1달러당 매출 ${f1(mroas)}달러 (${floor} 미만) → 추가 투자 효율 낮음`;
   else if (quad === "🔵" && mp < qp) { rec = sols.find(s => s.k === "예산"); why = `품질·광고비 모두 높고, 추가 1달러당 매출 ${f1(mroas)}달러로 충분하며 광고비 순위가 더 낮음`; }
   else rec = bestQ;
-  return { f, ch, ref, C, play, crash, qs, qp, mp, quad, gap, grade, score, cur, exact: !!exact, model, mroas, why, sols, rec, bestQ, allMult, qualCount: qual.length };
+  const out = { f, ch, ref, C, play, crash, qs, qp, mp, quad, gap, grade, score, cur, exact: !!exact, model, mroas, why, sols, rec, bestQ, allMult, qualCount: qual.length };
+  out.prio = teamPrio(out);
+  return out;
+}
+const PT = r => Math.expm1(TEAM.predictLog(r));
+function interp(x, xs, ys) { if (x <= xs[0]) return ys[0]; for (let i = 1; i < xs.length; i++) if (x <= xs[i]) return ys[i - 1] + (ys[i] - ys[i - 1]) * (x - xs[i - 1]) / (xs[i] - xs[i - 1]); return ys[ys.length - 1]; }
+function teamPrio(d) {          // 처방을 실행했을 때 팀 모델이 예상하는 추가 매출 (없으면 null = 유지)
+  if (!TEAM_READY || d.zero || !d.rec) return null;
+  const row0 = teamRow(d.f), base = PT(row0);
+  if (d.rec.k === "예산") {
+    const S0 = d.f.mkt, hi = Math.max(S0, d.C.p95 ?? S0); let S = [S0];
+    if (hi > S0) { const g = []; for (let i = 0; i < (ENG.n_grid || 40); i++) g.push(S0 * Math.pow(hi / S0, i / ((ENG.n_grid || 40) - 1))); S = [...new Set([S0, ...g, hi])].sort((a, b) => a - b); }
+    const r = S.map(s => PT({ ...row0, marketing_spend_usd: s })), dx = S.map(s => s - S0), dr = r.map(v => v - r[0]);
+    return interp(Math.min((ENG.raise || 0.5) * S0, dx[dx.length - 1]), dx, dr);
+  }
+  const r2 = x => +(+x).toFixed(2), A = { ...row0 };   // 파이썬 round(x, 2)와 같은 반올림
+  if (d.rec.k === "충돌률") A.crash_rate_pct = r2(d.C.crash);
+  else if (d.rec.k === "업데이트") A.update_frequency_days = r2(d.C.upd);
+  else A.avg_session_minutes = r2(d.C.play) / A.avg_daily_sessions;
+  if (d.quad === "🔴") return PT({ ...A, marketing_spend_usd: row0.marketing_spend_usd * (1 - (ENG.cut || 0.3)) }) - base;
+  return PT(A) - base;
 }
 const COST0 = { "충돌률": 5000, "플레이타임": 15000, "업데이트": 10000 };   // 팀 가정 (화면에서 수정 가능)
 const PB = {
@@ -863,9 +885,18 @@ function simCalc(d) {
   const p = SIM["플레이타임"]; out["플레이타임"] = { mult: Math.exp(slope * Math.log(Math.max(p.target / d.play, 1))), cost: p.cost };
   const u = SIM["업데이트"]; out["업데이트"] = { mult: Math.exp(-cq.upd * Math.max(d.f.upd - u.target, 0)), cost: u.cost };
   const bp = SIM["예산"].pct / 100; out["예산"] = { mult: Math.pow(1 + bp, ENG.elasticity), cost: d.f.mkt ? d.f.mkt * bp : 0 };
+  let teamAfter = null;
+  const onK = Object.keys(out).filter(k => SIM[k].on);
+  if (TEAM_READY && cur > 0) {
+    const row0 = teamRow(d.f), mod = (r, k) => { const x = { ...r };
+      if (k === "충돌률") x.crash_rate_pct = +SIM[k].target; else if (k === "업데이트") x.update_frequency_days = +SIM[k].target;
+      else if (k === "플레이타임") x.avg_session_minutes = +SIM[k].target / d.f.daily; else if (d.f.mkt) x.marketing_spend_usd = d.f.mkt * (1 + SIM.예산.pct / 100); return x; };
+    for (const k in out) out[k].mult = PT(mod(row0, k)) / cur;
+    let r = row0; onK.forEach(k => r = mod(r, k)); teamAfter = PT(r);
+  }
   for (const k in out) { out[k].gain = cur * (out[k].mult - 1); out[k].net = out[k].gain - out[k].cost; out[k].roi = out[k].cost > 0 ? out[k].gain / out[k].cost : null; }
-  const on = Object.keys(out).filter(k => SIM[k].on);
-  const mult = on.reduce((m, k) => m * out[k].mult, 1), cost = on.reduce((s, k) => s + out[k].cost, 0);
+  const on = onK;
+  const mult = teamAfter != null ? teamAfter / cur : on.reduce((m, k) => m * out[k].mult, 1), cost = on.reduce((s, k) => s + out[k].cost, 0);
   const qcost = on.filter(k => k !== "예산").reduce((s, k) => s + out[k].cost, 0), adChg = on.includes("예산") ? out["예산"].cost : 0;
   return { out, on, after: cur * mult, gain: cur * (mult - 1), cost, qcost, adChg, net: cur * (mult - 1) - cost };
 }
@@ -959,7 +990,7 @@ function paintResult() {
         ${R.on.length ? `<span class="arrow">→</span><span class="muted">선택한 처방 ${R.on.length}개 적용 시</span><span class="after">${usd(R.after)}</span>
         <span class="delta ${R.gain >= 0 ? "" : "neg"}">${R.gain >= 0 ? "+" : "−"}${usd(Math.abs(R.gain))}</span>` : `<span class="muted">· 아래에서 처방을 골라 보세요</span>`}</div>
       ${R.on.length ? `<p>품질 개선 비용 ${usd(R.qcost)}${R.adChg ? ` · 광고비 ${R.adChg > 0 ? "+" : "−"}${usd(Math.abs(R.adChg))}` : ""} · <b class="${R.net >= 0 ? "pos" : "neg"}">비용 뺀 순효과 ${R.net >= 0 ? "+" : "−"}${usd(Math.abs(R.net))}</b></p>` : ""}
-      <p class="src">매출: ${srcTxt} (개별 게임 오차 약 2배) · 처방 효과: 팀 품질 모델·광고비 탄력성 0.555 · 비용은 팀 가정값(수정 가능) · 상관 기반 예상치이며 인과 효과가 아님</p>
+      <p class="src">매출: ${srcTxt} (개별 게임 오차 약 2배) · 처방 효과: 처방 값을 팀 모델에 넣어 다시 예측 · 비용은 팀 가정값(수정 가능) · 상관 기반 예상치이며 인과 효과가 아님</p>
     </div>
     <div class="kpis">
       ${kpi("게임 품질", rankTxt(d.qp), "비슷한 게임 중 · 1위 = 가장 좋음")}
@@ -1135,8 +1166,8 @@ function show(view) {
 }
 $("#foot").innerHTML = `용어: 게임 품질 = 광고비를 빼고 D7 지표만으로 예상한 매출을 비슷한 게임(장르 × 과금 방식)끼리 줄 세운 순위 · 광고비 규모 = 같은 그룹 안 광고비 순위 · 광고비 1달러당 매출 = 예상 90일 매출 ÷ 초기 광고비 ·
   광고비를 더 쓰면 1달러당 = 광고비 +50% 시 늘어나는 예상 매출 ÷ 늘어난 광고비 · 진단 로직 = 팀 파이프라인(priority_pipeline.py) · 예상 매출 = 팀 앙상블 모델(모델.zip, CV RMSLE 0.6741 · HGB 41,000개 트리를 브라우저에서 그대로 계산) · 추가 피처를 안 넣으면 같은 장르 × 과금 방식 게임의 최빈값·중앙값 사용 · 둘 다 높은 유형은 추가 1달러당 매출 2 이상일 때만 증액 ·
-  처방 효과 = 팀 품질 모델 계수 · 광고비 탄력성 0.555 · 처방 비용 = 팀 가정값(화면에서 수정) · 유형 = 품질·광고비 순위 50 기준 · 등급(대회 요구) = 두 순위 차이 55 이상 고, 30 이상 중 ·
-  train 사후 검증: 기회 유형 실제 광고비 1달러당 매출 33.8달러 vs 위험 유형 3.3달러, 우선순위 점수와 실제 효율 상관 0.79 · 합성 데이터(교육용) · 모든 예상치는 상관 기반이며 인과 효과가 아님 · 실험카드는 이 브라우저에 저장`;
+  처방 효과·우선순위 = 처방 값을 팀 앙상블 모델에 넣어 다시 예측한 매출 차이(광고비 증액은 같은 그룹 광고비 95분위까지의 모델 곡선, 위험 유형은 광고비 −30% 포함) · 처방 변수 선택 = 팀 품질 모델 계수 × 실행 가능성 · 처방 비용 = 팀 가정값(화면에서 수정) · 유형 = 품질·광고비 순위 50 기준 · 등급(대회 요구) = 두 순위 차이 55 이상 고, 30 이상 중 ·
+  train 사후 검증: 기회 유형 실제 광고비 1달러당 매출 33.8달러 vs 위험 유형 3.3달러, 합성 데이터(교육용) · 모든 예상치는 상관 기반이며 인과 효과가 아님 · 실험카드는 이 브라우저에 저장`;
 window.addEventListener("hashchange", () => show(location.hash.slice(1)));
 // ---------- 로그인 · 온라인 저장 (발표용: 사용자 이름만으로 구분) ----------
 const SB_URL = "https://arqruewigqgzbmlsgjad.supabase.co/rest/v1/d7_board_store";
