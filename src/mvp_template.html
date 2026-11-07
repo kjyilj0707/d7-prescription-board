@@ -194,6 +194,20 @@ details.pb ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px; }
 #s2type.chip { padding: 3px 10px; background: var(--layer); }
 .grade { font-weight: 600; font-size: 12px; padding: 2px 8px; border: 1px solid var(--line-strong); }
 
+/* 내 게임 위치 */
+.mine { border-left: 3px solid var(--accent); }
+.mine-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--line); }
+.mine-grid > div { padding: 14px 18px; display: grid; gap: 4px; border-right: 1px solid var(--line); }
+.mine-grid > div:last-child { border-right: 0; }
+.mine-grid span { color: var(--muted); font-size: 12px; } .mine-grid b { font-size: 22px; font-weight: 300; font-family: var(--mono); }
+.mine-near { display: flex; flex-wrap: wrap; gap: 8px; font-size: 13px; }
+.mine-near button { all: unset; cursor: pointer; border: 1px solid var(--line); padding: 6px 10px; display: inline-flex; gap: 8px; align-items: center; }
+.mine-near button:hover { background: var(--layer); }
+.mine-hist { display: flex; flex-wrap: wrap; gap: 6px; }
+.mine-hist button { min-height: 30px; padding: 2px 10px; font-size: 12px; }
+.mine-hist button.on { border-color: var(--accent); color: var(--accent); }
+@media (max-width: 760px) { .mine-grid { grid-template-columns: 1fr 1fr; } .mine-grid > div { border-bottom: 1px solid var(--line); } }
+
 /* 보드 */
 .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border: 1px solid var(--line); }
 .tile { padding: 18px 20px; display: grid; gap: 6px; border-right: 1px solid var(--line); background: var(--bg); }
@@ -257,9 +271,9 @@ tbody tr { cursor: pointer; } tbody tr:hover { background: var(--layer); }
 </div></section>
 
 <section class="hero-band" id="heroBoard" hidden><div class="hero-in">
-  <div><p class="crumb"><a href="#diag">홈</a> / 전체 게임 비교</p><h1>어디부터 손볼까요?</h1><p class="hero-sub">이번 주 D7 신작 게임을 품질과 광고비로 한눈에 보고, 먼저 손볼 게임을 고르세요.</p></div>
+  <div><p class="crumb"><a href="#diag">홈</a> / 전체 게임 비교</p><h1>내 게임은 어디쯤일까요?</h1><p class="hero-sub">진단에서 입력한 게임이 기존 게임들 사이에서 품질과 광고비로 어디에 있는지 보고, 그 위치에 맞는 처방으로 넘어가세요.</p></div>
   <label class="hsearch"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg><input type="search" data-gsearch placeholder="게임 ID로 바로 진단하기 (예: REV4_003355 또는 3355)" aria-label="게임 ID로 찾기"></label>
-  <div class="htiles"><button class="htile" type="button" data-scroll="#list"><b>우선순위 목록</b><span>팀 우선순위 점수 순으로 게임과 처방, 예상 추가 매출을 확인하세요.</span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg></button><button class="htile" type="button" data-scroll="#scatter"><b>품질과 광고비 그래프</b><span>색이 짙을수록 예상 매출이 높은 게임이에요. 점을 누르면 진단해요.</span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><circle cx="8" cy="15" r="1.3"/><circle cx="12" cy="10" r="1.3"/><circle cx="17" cy="7" r="1.3"/><circle cx="16" cy="14" r="1.3"/></svg></button><button class="htile" type="button" data-goto="diag"><b>새 게임 진단</b><span>목록에 없는 게임은 D7 지표를 직접 넣어 진단하세요.</span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button></div>
+  <div class="htiles"><button class="htile" type="button" data-scroll="#list"><b>우선순위 목록</b><span>팀 우선순위 점수 순으로 게임과 처방, 예상 추가 매출을 확인하세요.</span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg></button><button class="htile" type="button" data-scroll="#mine"><b>내 게임 위치</b><span>입력한 게임의 품질 · 광고비 순위와 가까운 기존 게임을 확인하세요.</span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><circle cx="8" cy="15" r="1.3"/><circle cx="12" cy="10" r="1.3"/><circle cx="17" cy="7" r="1.3"/><circle cx="16" cy="14" r="1.3"/></svg></button><button class="htile" type="button" data-goto="diag"><b>새 게임 진단</b><span>목록에 없는 게임은 D7 지표를 직접 넣어 진단하세요.</span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button></div>
 </div></section>
 <section class="hero-band" id="heroCards" hidden><div class="hero-in">
   <div><p class="crumb"><a href="#diag">홈</a> / 실험카드</p><h1>처방을 실행 계획으로</h1><p class="hero-sub">고른 처방을 담당 · 할 일 · 확인 지표 · 기간이 있는 실험카드로 정리하고, 노션이나 Jira에 붙여 넣으세요.</p></div>
@@ -269,7 +283,7 @@ tbody tr { cursor: pointer; } tbody tr:hover { background: var(--layer); }
 <div class="wrap">
 
   <section id="v-diag" hidden>
-    <div class="layout"><aside class="rail"><ol class="steps" id="steps"><li data-s="1">게임 유형<small>장르 · 수익화 방식</small></li><li data-s="2">D7 지표 입력<small>다이얼 또는 직접 입력</small></li><li data-s="3">진단 결과 · 처방<small>예상 90일 매출</small></li></ol></aside><div class="stage">
+    <div class="layout"><aside class="rail"><ol class="steps" id="steps"><li data-s="1">게임 유형<small>장르 · 수익화 방식</small></li><li data-s="2">D7 지표 입력<small>다이얼 또는 직접 입력</small></li><li data-s="3">비교 위치 → 처방<small>전체 게임 속 위치 · 예상 90일 매출</small></li></ol></aside><div class="stage">
 
     <div class="sec" id="s1">
       <div><h2>어떤 게임인가요?</h2><p class="muted" style="margin-top:8px">장르와 수익화 방식을 고르면, 같은 유형의 게임끼리 비교해서 진단해요.</p></div>
@@ -286,17 +300,18 @@ tbody tr { cursor: pointer; } tbody tr:hover { background: var(--layer); }
       </div>
       <div class="panel"><div class="fgroup"><h3>수익화 구조 · 게임 정보</h3><div class="ctls" id="catCtls"></div></div></div>
       <div class="panel"><div class="fgroup"><h3>D7 지표 <span id="cellHint"></span></h3><div class="ctls" id="numCtls"></div></div></div>
-      <div class="actions"><button id="back1b">← 이전</button><button class="primary" id="to3">진단하기 →</button><span class="src" id="formNote"></span></div>
+      <div class="actions"><button id="back1b">← 이전</button><button class="primary" id="to3">전체 게임과 비교하기 →</button><span class="src" id="formNote"></span></div>
     </div>
 
     <div class="sec" id="s3" hidden>
-      <div class="actions" style="justify-content:space-between"><div><h2>진단 결과 · 처방</h2><p class="muted" id="s3type" style="margin-top:6px"></p></div><div class="actions"><button id="back2">← 지표 수정</button><button id="restart">처음부터</button></div></div>
+      <div class="actions" style="justify-content:space-between"><div><h2>진단 결과 · 처방</h2><p class="muted" id="s3type" style="margin-top:6px"></p></div><div class="actions"><button id="back2">← 지표 수정</button><button id="toPos">비교 위치 보기</button><button id="restart">처음부터</button></div></div>
       <div id="result" style="display:grid;gap:20px;min-width:0"></div>
     </div>
   </div></div>
   </section>
 
   <section id="v-board" hidden style="display:grid;gap:24px">
+        <div class="panel mine" id="mine"></div>
         <div class="tiles" id="tiles"></div>
     <div class="panel">
       <div class="filters">
@@ -393,6 +408,47 @@ function solText(g) {
   return `${s} 개선`;
 }
 
+// 진단에서 입력한 게임들 (최근 순, 최대 5개)
+let MINE = [], mineIdx = 0;
+function pushMine(d) {
+  if (!d || d.zero) return;
+  const key = JSON.stringify(d.f);
+  const old = MINE.findIndex(m => m.key === key);
+  const name = old >= 0 ? MINE[old].name : loadedId && !dirty ? loadedId : `내 게임 ${MINE.filter(m => m.name.startsWith("내 게임")).length + 1}`;
+  if (old >= 0) MINE.splice(old, 1);
+  MINE.unshift({ key, name, d, S: { ...S }, loadedId, dirty }); MINE = MINE.slice(0, 5); mineIdx = 0;
+}
+function openSolution(m) {
+  S = { ...m.S }; loadedId = m.loadedId; dirty = m.dirty; renderStep1();
+  location.hash = "diag"; show("diag"); setStep(3);
+}
+function focusMine() {
+  const m = MINE[mineIdx]; if (!m) return;
+  $("#fGenre").value = m.d.ref.endsWith("(전체)") ? "" : m.d.f.genre; $("#fChan").value = m.d.f.mm; $("#fQuad").value = ""; $("#fGrade").value = ""; $("#fId").value = "";
+}
+function renderMine() {
+  const box = $("#mine");
+  if (!MINE.length) { box.innerHTML = `<div style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center"><div><h2>내 게임의 위치</h2><p class="muted" style="margin-top:6px">게임 진단에서 장르 · 수익화 방식 · D7 지표를 입력하면, 기존 게임들 사이에서 어디쯤인지 여기서 보여 드려요.</p></div><a class="btn" href="#diag">게임 조건 입력하기 <span class="ar">→</span></a></div>`; return; }
+  const m = MINE[mineIdx], d = m.d, peers = G.filter(g => g["비교셀"] === d.ref && g["마케팅_pct"] != null);
+  const revRank = 100 * peers.filter(g => g.pred_usd > d.cur).length / Math.max(peers.length, 1);
+  const near = d.mp == null ? [] : peers.filter(g => g.game_id !== m.loadedId).map(g => [Math.hypot(g["품질_pct"] - d.qp, g["마케팅_pct"] - d.mp), g]).sort((a, b) => a[0] - b[0]).slice(0, 4).map(x => x[1]);
+  const next = { "🟢": "광고 예산을 늘려 볼 만한 위치", "🔵": "지금 균형을 유지할 위치", "🟡": "품질부터 고칠 위치", "🔴": "광고비를 줄이고 품질부터 고칠 위치", "⚪": "광고비 기록이 없어 품질만 진단" }[d.quad];
+  box.innerHTML = `<div style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:flex-start">
+      <div><h2>내 게임의 위치</h2><p class="muted" style="margin-top:6px">${m.name} · ${d.f.genre} · ${d.f.mm} · ${d.ch} — 비슷한 게임(${d.ref}) ${peers.length.toLocaleString()}개와 비교 · 아래 그래프의 파란 점</p></div>
+      <button class="btn" type="button" id="mineSol">처방과 예상 매출 보기 <span class="ar">→</span></button></div>
+    <p style="font-size:17px">${chip(d.quad)} <span style="margin-left:6px">${QNAME[d.quad]} → <b>${next}</b></span></p>
+    <div class="mine-grid">
+      <div><span>게임 품질</span><b>${rankTxt(d.qp)}</b><span>비슷한 게임 중 (1위 = 가장 좋음)</span></div>
+      <div><span>광고비</span><b>${d.mp == null ? "–" : rankTxt(d.mp)}</b><span>${d.mp == null ? "광고비 기록 없음" : "많이 쓰는 순 (1위 = 가장 많이 씀)"}</span></div>
+      <div><span>예상 90일 매출</span><b>${usd(d.cur)}</b><span>비슷한 게임 중 상위 ${Math.max(1, Math.round(revRank))}%</span></div>
+      <div><span>등급 · 팀 점수</span><b>${d.grade}${d.score != null ? " · " + d.score.toFixed(2) : ""}</b><span>점수가 높을수록 광고비 증액 효과 기대</span></div>
+    </div>
+    ${near.length ? `<div style="display:grid;gap:8px"><span class="muted" style="font-size:12px">그래프에서 가장 가까운 기존 게임 (누르면 그 게임 진단)</span><div class="mine-near">${near.map(g => `<button type="button" data-id="${g.game_id}"><span class="num">${g.game_id}</span>${chip(g["사분면"])}<span class="num">${usd(g.pred_usd)}</span></button>`).join("")}</div></div>` : ""}
+    ${MINE.length > 1 ? `<div class="mine-hist"><span class="muted" style="font-size:12px;align-self:center">입력한 게임:</span>${MINE.map((x, i) => `<button type="button" data-mi="${i}" class="${i === mineIdx ? "on" : ""}">${x.name}</button>`).join("")}</div>` : ""}`;
+  $("#mineSol").onclick = () => openSolution(m);
+  box.querySelectorAll("[data-id]").forEach(b => b.onclick = () => go("diag", b.dataset.id));
+  box.querySelectorAll("[data-mi]").forEach(b => b.onclick = () => { mineIdx = +b.dataset.mi; focusMine(); renderBoard(); });
+}
 function renderTiles(rows) {
   const cnt = q => rows.filter(g => g["사분면"] === q).length;
   const add = rows.filter(g => g["등급"] === "고").reduce((s, g) => s + (g["예상추가매출"] || 0), 0);
@@ -425,10 +481,17 @@ function renderScatter(rows) {
   s += T(x(0), PT - 10, "품질 낮음 · 광고비 많음") + T(x(100), PT - 10, "품질 높음 · 광고비 많음", "end")
     + T((x(0) + x(100)) / 2, H - 8, "게임 품질 순위 →", "middle", 'fill="#525252"')
     + `<text transform="translate(11 ${(y(0) + y(100)) / 2}) rotate(-90)" font-size="11" fill="#525252" text-anchor="middle">광고비 순위 →</text>`;
+  MINE.forEach((m, i) => { if (i === mineIdx || m.d.mp == null) return;
+    s += `<circle cx="${x(m.d.qp)}" cy="${y(m.d.mp)}" r="6" fill="none" stroke="#0f62fe" stroke-width="1.5" stroke-dasharray="2 2"><title>${m.name}</title></circle>`; });
+  const me = MINE[mineIdx];
+  if (me) { const d = me.d, cy = y(d.mp ?? 0), cx = x(d.qp), right = d.qp > 70;
+    s += `<line x1="${cx}" x2="${cx}" y1="${y(0)}" y2="${y(100)}" stroke="#0f62fe" stroke-opacity=".35"/><line x1="${x(0)}" x2="${x(100)}" y1="${cy}" y2="${cy}" stroke="#0f62fe" stroke-opacity=".35"/>
+      <circle cx="${cx}" cy="${cy}" r="12" fill="#0f62fe" fill-opacity=".14"/><circle cx="${cx}" cy="${cy}" r="6.5" fill="#0f62fe" stroke="#ffffff" stroke-width="2"><title>${me.name} · 품질 ${f1(d.qp)} · 광고비 ${d.mp == null ? "기록 없음" : f1(d.mp)} · 예상 ${usd(d.cur)}</title></circle>
+      <text x="${right ? cx - 15 : cx + 15}" y="${cy - 10}" font-size="12" font-weight="600" fill="#0f62fe" text-anchor="${right ? "end" : "start"}" paint-order="stroke" stroke="#ffffff" stroke-width="4" stroke-linejoin="round">${me.name}</text>`; }
   $("#scatter").innerHTML = s + "</svg>";
   $("#legend").innerHTML = `<div style="display:grid;gap:6px;width:100%;max-width:300px"><span>예상 90일 매출</span>
     <div style="display:grid;grid-template-columns:repeat(5,1fr);height:6px">${REV_RAMP.map(c => `<span style="background:${c}"></span>`).join("")}</div>
-    <div style="display:flex;justify-content:space-between;font-size:11px;font-family:var(--mono)"><span>낮음</span><span>${kfmt(REV_BREAKS[1])}</span><span>${kfmt(REV_BREAKS[3])}</span><span>높음</span></div></div>`;
+    <div style="display:flex;justify-content:space-between;font-size:11px;font-family:var(--mono)"><span>낮음</span><span>${kfmt(REV_BREAKS[1])}</span><span>${kfmt(REV_BREAKS[3])}</span><span>높음</span></div></div>${me ? `<span style="display:inline-flex;gap:6px;align-items:center"><i style="width:10px;height:10px;border-radius:50%;background:#0f62fe;display:inline-block"></i>${me.name} (입력한 게임)</span>` : ""}`;
   $("#scatter").querySelectorAll("circle").forEach(c => c.addEventListener("click", () => go("diag", c.dataset.id)));
 }
 function renderList(rows) {
@@ -475,7 +538,7 @@ function renderBoard(resetShown = true) {
   $("#sortNote").textContent = { team: "정렬: 팀 우선순위 점수 = 품질 백분위 × (1 − 마케팅비 백분위) · 품질 좋고 덜 쓴 게임 먼저 · 체크해서 비교",
     gap: "정렬: 불균형 |품질 − 마케팅비| 큰 순 (두 축이 어긋날수록 먼저) · 체크해서 비교",
     impact: "정렬: 예상 추가 매출 × 실행 가능성 (핫픽스 1.0 · 예산 0.9 · 업데이트 0.7 · 플레이타임 0.6, 팀 가정) · 체크해서 비교" }[$("#fSort").value];
-  renderTiles(rows); renderScatter(rows); renderList(rows); renderCompare();
+  renderMine(); renderTiles(rows); renderScatter(rows); renderList(rows); renderCompare();
 }
 ["#fGenre", "#fChan", "#fQuad", "#fGrade", "#fSort"].forEach(s => $(s).addEventListener("change", () => renderBoard()));
 $("#fId").addEventListener("input", () => renderBoard());
@@ -650,7 +713,7 @@ function renderDiag() {
   const need = ["sess", "daily", "upd", "wish", "apk"].filter(k => !(f[k] > 0));
   if (!f.genre || !f.mm) { IN("result").innerHTML = `<div class="panel"><p>① 게임 유형에서 장르와 수익화 방식을 먼저 골라 주세요.</p></div>`; return; }
   if (need.length) { IN("result").innerHTML = `<div class="panel"><p>세션 길이·하루 세션 수·업데이트 간격·위시리스트·앱 용량은 0보다 커야 해요. ② D7 지표 입력에서 확인해 주세요.</p></div>`; return; }
-  const d = diagnose(f); lastDiag = d;
+  const d = diagnose(f); lastDiag = d; pushMine(d);
   if (d.zero) { IN("result").innerHTML = `<div class="hero"><p class="verdict">무료 게임인데 광고도 인앱결제도 없어요 → 데이터 규칙상 <b>90일 매출 $0</b>이에요.</p><p>먼저 <b>광고 또는 인앱결제 도입</b>을 검토하세요. 수익 수단을 켜고 다시 진단해 보세요.</p></div>`; return; }
   d.mroas = d.f.mkt ? d.cur * (Math.pow(1.5, ENG.elasticity) - 1) / (d.f.mkt * 0.5) : null;
   initSim(d); paintResult();
@@ -761,8 +824,10 @@ function initDiag() {
   IN("heroDemo").onclick = () => { if (ENG.demo && ENG.demo[0]) { loadExample(ENG.demo[0]); renderStep1(); setStep(3); } };
   IN("to2").onclick = () => setStep(2);
   IN("back1").onclick = IN("back1b").onclick = () => { renderStep1(); setStep(1); };
-  IN("to3").onclick = () => setStep(3);
+  IN("to3").onclick = () => { const f = readForm(); const d = (f.genre && f.mm) ? diagnose(f) : null;
+    if (!d || d.zero) { setStep(3); return; } pushMine(d); focusMine(); location.hash = "board"; show("board"); };
   IN("back2").onclick = () => setStep(2);
+  IN("toPos").onclick = () => { focusMine(); location.hash = "board"; show("board"); };
   IN("restart").onclick = () => { S = { genre: null, mm: null, ...DEFAULT }; loadedId = null; dirty = true; IN("exSel").value = ""; renderStep1(); setStep(1); };
   IN("mDial").onclick = () => { mode = "dial"; renderStep2(); };
   IN("mType").onclick = () => { mode = "type"; renderStep2(); };
