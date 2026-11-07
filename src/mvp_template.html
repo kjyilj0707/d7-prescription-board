@@ -280,6 +280,8 @@ body.on-landing .masthead, body.on-landing .subnav, body.on-landing .hero-band, 
 
 .rank-no { display: inline-block; min-width: 54px; padding: 2px 8px; margin-right: 8px; background: var(--accent); color: #fff; font-size: 12px; font-weight: 600; text-align: center; }
 .rank-gain { font-family: var(--mono); font-size: 13px; color: var(--accent); margin-right: 10px; }
+.rank-gain.neg { color: var(--q-red); }
+.rank-basis { flex-basis: 100%; order: 3; font-size: 12px; color: var(--muted); font-weight: 400; }
 
 /* 로그인 */
 .mh-login { min-height: 30px; padding: 2px 12px; font-size: 13px; border: 1px solid var(--line-strong); background: var(--bg); cursor: pointer; }
@@ -441,7 +443,7 @@ body.on-landing .masthead, body.on-landing .subnav, body.on-landing .hero-band, 
   <section id="v-cards" hidden style="display:grid;gap:24px">
         <div class="panel" id="history"></div>
         <div class="panel" id="cardForm"></div>
-    <div class="panel"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline"><h2>솔루션 우선순위</h2><span class="muted" style="font-size:12px">저장한 실험카드를 처방 시 예상 추가 매출이 큰 순으로 정렬</span></div><div class="saved" id="saved"></div></div>
+    <div class="panel"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline"><h2>솔루션 우선순위</h2><span class="muted" style="font-size:12px">팀 우선순위 기준 = 팀이 정한 처방(위험 유형은 품질 개선 + 광고비 30% 축소를 한 묶음)을 실행했을 때 팀 모델이 예상하는 추가 매출이 큰 순 · 비용 데이터가 없어 금액 효과 순</span></div><div class="saved" id="saved"></div></div>
   </section>
 
   <p class="note" id="foot"></p>
@@ -1094,10 +1096,19 @@ function initDiag() {
 // ---------- ③ 실험카드 ----------
 const FIELDS = ["대상", "처방", "가설", "실행", "담당", "지표", "기간", "비용", "효과", "근거"];
 const LABELS = { 대상: "대상", 처방: "처방", 가설: "가설", 실행: "실행 체크리스트", 담당: "담당", 지표: "성공 지표 (주차별)", 기간: "관찰 기간", 비용: "예상 비용", 효과: "예상 효과", 근거: "근거" };
+function teamAfter(d, keys) {     // 여러 처방을 함께 실행했을 때 팀 모델 예상 90일 매출
+  if (!TEAM_READY) { const R = simCalc(d); return d.cur * keys.reduce((m, k) => m * R.out[k].mult, 1); }
+  let r = teamRow(d.f);
+  keys.forEach(k => { r = { ...r };
+    if (k === "충돌률") r.crash_rate_pct = +SIM[k].target; else if (k === "업데이트") r.update_frequency_days = +SIM[k].target;
+    else if (k === "플레이타임") r.avg_session_minutes = +SIM[k].target / d.f.daily; else if (d.f.mkt) r.marketing_spend_usd = d.f.mkt * (1 + SIM.예산.pct / 100); });
+  return PT(r);
+}
 function cardFromSim(d, only) {
   const R = simCalc(d), name = loadedId && !dirty ? loadedId : `입력한 게임 (${d.f.genre} · ${d.f.mm})`;
-  const on = only ? [only] : R.on.length ? R.on : [];
-  if (only) { const o = R.out[only]; R.after = d.cur * o.mult; R.gain = o.gain; R.net = o.net; R.qcost = only === "예산" ? 0 : o.cost; R.adChg = only === "예산" ? o.cost : 0; }
+  const on = only ? [].concat(only) : R.on.length ? R.on : [];
+  if (only) { const ks = [].concat(only); R.after = ks.length > 1 ? teamAfter(d, ks) : d.cur * R.out[ks[0]].mult; R.gain = R.after - d.cur;
+    R.qcost = ks.filter(k => k !== "예산").reduce((s, k) => s + R.out[k].cost, 0); R.adChg = ks.includes("예산") ? R.out["예산"].cost : 0; R.net = R.gain - R.qcost - R.adChg; }
   const desc = k => k === "예산" ? `광고비 ${SIM.예산.pct > 0 ? "+" : ""}${SIM.예산.pct}% (${usd(d.f.mkt)} → ${usd(d.f.mkt * (1 + SIM.예산.pct / 100))})`
     : k === "충돌률" ? `충돌률 ${d.crash.toFixed(2)}% → ${(+SIM[k].target).toFixed(2)}%` : k === "플레이타임" ? `하루 플레이타임 ${Math.round(d.play)}분 → ${Math.round(SIM[k].target)}분` : `업데이트 간격 ${Math.round(d.f.upd)}일 → ${Math.round(SIM[k].target)}일`;
   const pbOf = k => PB[k === "예산" ? (SIM.예산.pct < 0 ? "예산-" : "예산+") : k];
@@ -1129,8 +1140,19 @@ function saveDiagnosis() {
   const name = prev ? prev.name : (MINE.find(m => m.key === key) || {}).name || `내 게임 ${nextNo()}`;
   const id = prev ? prev.id : Math.max(Date.now(), ...DIAGS.map(r => r.id + 1));
   if (prev) { store = store.filter(c => c.diagId !== id); DIAGS = DIAGS.filter(x => x !== prev); }
-  const ks = R.on.length ? R.on : [null];
-  const cards = ks.map((k, i) => { const c = cardFromSim(d, k || undefined); c.대상 = c.대상.replace(/^[^·]+/, name + " "); return { id: id * 10 + i, diagId: id, game: name, quad: d.quad, gain: k ? Math.round(R.out[k].gain) : 0, at: new Date().toLocaleString("ko-KR"), ...c }; });
+  const team = (d.recKeys || []).filter(k => R.on.includes(k)), extra = R.on.filter(k => !team.includes(k));
+  const groups = [...(team.length ? [team] : []), ...extra.map(k => [k])];
+  if (!groups.length) groups.push([]);
+  const amt = v => `${v >= 0 ? "+" : "−"}${usd(Math.abs(v))}`;
+  const cards = groups.map((ks, i) => {
+    const c = ks.length ? cardFromSim(d, ks) : cardFromSim(d); c.대상 = c.대상.replace(/^[^·]+/, name + " ");
+    const gain = ks.length ? Math.round((ks.length > 1 ? teamAfter(d, ks) : d.cur * R.out[ks[0]].mult) - d.cur) : 0;
+    const isTeam = ks.length && ks.every(k => team.includes(k));
+    const basis = !ks.length ? "유지 처방 · 추가 매출 없음"
+      : isTeam && ks.length > 1 ? `팀 기준 처방 묶음 · ${ks.map(k => `${k === "예산" ? `광고비 ${SIM.예산.pct > 0 ? "+" : ""}${SIM.예산.pct}%` : k + " 개선"} ${amt(R.out[k].gain)}`).join(", ")} → 함께 실행 시 팀 모델 예상`
+      : isTeam ? `팀 기준 처방 · ${ks[0] === "예산" ? `광고비 ${SIM.예산.pct > 0 ? "+" : ""}${SIM.예산.pct}%를` : `${ks[0]}을 목표값으로 바꿔`} 팀 모델로 다시 예측한 추가 매출`
+      : `직접 추가한 처방(팀 기준 외) · ${ks[0] === "예산" ? `광고비 ${SIM.예산.pct > 0 ? "+" : ""}${SIM.예산.pct}%` : ks[0] + " 개선"}만 실행 시 팀 모델 예상`;
+    return { id: id * 10 + i, diagId: id, game: name, quad: d.quad, gain, basis, team: !!isTeam, at: new Date().toLocaleString("ko-KR"), ...c }; });
   store = [...cards, ...store]; saveStore();
   DIAGS.unshift({ id, key, name, at: new Date().toLocaleString("ko-KR"), S: structuredClone(S), loadedId, dirty, sim: JSON.parse(JSON.stringify(SIM)),
     genre: d.f.genre, mm: d.f.mm, ch: d.ch, ref: d.ref, quad: d.quad, qp: d.qp, mp: d.mp, grade: d.grade, score: d.score, cur: d.cur,
@@ -1212,7 +1234,7 @@ function renderSaved() {
   const gainOf = c => { if (typeof c.gain === "number") return c.gain; const m = /\(([+−-])\$([\d,]+)\)/.exec(c.효과 || ""); return m ? (m[1] === "+" ? 1 : -1) * +m[2].replace(/,/g, "") : -Infinity; };
   const ranked = store.slice().sort((a, b) => gainOf(b) - gainOf(a));
   $("#saved").innerHTML = tools + (store.length ? ranked.map((c, i) => `<article>
-      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b><span class="rank-no">${i + 1}순위</span>${Number.isFinite(gainOf(c)) ? `<span class="rank-gain">${gainOf(c) >= 0 ? "+" : "−"}${usd(Math.abs(gainOf(c)))}</span>` : ""} ${chip(c.quad)} <span class="num">${c.game}</span> · ${(c.처방 || c.레버 || "").replace(/</g, "&lt;")}</b><span class="muted" style="font-size:12px">${c.at} <button data-cp="${c.id}">복사</button> <button data-del="${c.id}" aria-label="삭제">삭제</button></span></div>
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b><span class="rank-no">${i + 1}순위</span>${Number.isFinite(gainOf(c)) ? `<span class="rank-gain ${gainOf(c) < 0 ? "neg" : ""}">${gainOf(c) < 0 ? "예상 매출 감소 " : "예상 추가 매출 "}${gainOf(c) >= 0 ? "+" : "−"}${usd(Math.abs(gainOf(c)))}</span>` : ""} ${chip(c.quad)} <span class="num">${c.game}</span> · ${(c.처방 || c.레버 || "").replace(/</g, "&lt;")}</b><span class="rank-basis">(${(c.basis || "예전 저장 카드 · 처방 단독 실행 시 예상").replace(/</g, "&lt;")})</span><span class="muted" style="font-size:12px">${c.at} <button data-cp="${c.id}">복사</button> <button data-del="${c.id}" aria-label="삭제">삭제</button></span></div>
       <dl>${FIELDS.filter(f => f !== "대상" && f !== "처방").map(f => `<dt>${LABELS[f]}</dt><dd style="white-space:pre-line">${(c[f] || "").replace(/</g, "&lt;")}</dd>`).join("")}</dl></article>`).join("")
     : `<p class="muted">아직 저장한 카드가 없어요. ① 게임 진단에서 처방을 고르고 「선택한 처방으로 실험카드 만들기」를 눌러 보세요.</p>`);
   $("#saved").querySelectorAll("[data-del]").forEach(b => b.onclick = () => { store = store.filter(c => String(c.id) !== b.dataset.del); saveStore(); renderSaved(); });
