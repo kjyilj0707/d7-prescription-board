@@ -5,11 +5,11 @@ D7 게임 진단·솔루션 추천기  (입력 → 팀 결과 JSON과 같은 형
 여러 개를 넣고 --budget을 주면 그 게임들 안에서만 마케팅 증액 예산을 나눈다.
 
 흐름
- 1) 클래스 분류 : 장르 × 수익화 구조(광고+IAP / 광고만 / IAP만 / 없음) 셀, 50개 미만 셀은 같은 구조 전체로 대체
- 2) 우선순위   : 셀 안 품질 백분위(마케팅비 제외 D7 지표 회귀) + 마케팅비 백분위 → 사분면·등급
-                 🟢 품질↑ 마케팅↓ / 🔵 둘 다↑ / 🟡 둘 다↓ / 🔴 품질↓ 마케팅↑ / ⚪ 마케팅비 없음 / ⛔ 수익 수단 없음
-                 등급 = |품질 백분위 − 마케팅비 백분위| 55 이상 고, 30 이상 중, 그 외 저
- 3) 솔루션     : 🟢 마케팅 증액(예산) / 🔵 유지 / 그 외 품질 개선
+ 1) 클래스 분류 : 장르 × 과금방식(Free/Freemium/Paid/Subscription) 셀, 50개 미만 셀은 같은 과금방식 전체로 대체
+ 2) 우선순위   : 셀 안 품질 백분위(마케팅비 제외 D7 지표 회귀) + 마케팅비 백분위 → 사분면
+                 품질 백분위 50 이상이면 높음, 마케팅비 백분위 50 이상이면 높음 → 4개 유형
+                 품질 높음·마케팅비 낮음 / 품질 높음·마케팅비 높음 / 품질 낮음·마케팅비 낮음 / 품질 낮음·마케팅비 높음 / 마케팅비 없음 / 수익 수단 없음
+ 3) 솔루션     : 🟢 마케팅 증액(예산) / 🔵 유지(한계 ROAS 점검) / 🟡 품질 개선 먼저/ 🔴 품질 개선 + 집행 축소
                  품질 개선 = 충돌률·플레이타임·업데이트 중 셀 중앙값까지 개선했을 때
                              (예상 추가 매출 × 실행 가능성)이 가장 큰 변수
 
@@ -33,20 +33,27 @@ MIN_CELL = 50                      # 셀 최소 표본(매출 0 규칙 제외). 
 ELASTICITY = 0.555                 # 마케팅비 탄력성 (+50% 시나리오 계산에 사용)
 RAISE = 0.5                        # 마케팅비 증액 비율
 FEAS = {"충돌률": 1.0, "업데이트": 0.7, "플레이타임": 0.6}   # 실행 가능성 가중
-GRADE_HI, GRADE_MID = 55, 30       # 등급 기준: |품질 백분위 − 마케팅비 백분위|
+Q_CUT = 50                         # 품질 백분위 ≥50(셀 중앙값 이상)이면 높음. 개선 목표가 셀 중앙값이라 중앙값 위는 개선 여지가 없음
+M_CUT = 50                         # 마케팅비 셀 백분위 ≥50(셀 중앙값 이상)이면 높음
+CUT = 0.3                          # 🔴 집행 축소 비율
 QUALITY_COLS = ["lpt", "lsm", "crash", "upd", "lwl", "lapk"]  # 품질에는 마케팅비를 넣지 않는다
 QUALITY_CATS = ["mon", "pub", "genre", "region_focus", "multiplayer_support"]
 GENRES = ["Casual", "Puzzle", "RPG", "Racing", "Simulation", "Sports", "Strategy"]  # Action이 기준
 NOTE = {
     "대상": "입력한 게임 (D7 시점)",
-    "셀": "장르 × 수익화 구조(광고/IAP 조합: 광고+IAP·광고만·IAP만·없음), 50개 미만 셀은 같은 수익화 구조 전체로 대체",
+    "셀": "장르 × 과금방식(Free/Freemium/Paid/Subscription), 50개 미만 셀은 같은 과금방식 전체로 대체",
     "예측매출": "pred_log 입력 시 팀 앙상블 예측, 없으면 내부 회귀 모델(마케팅 포함) 예측",
     "품질": "마케팅비를 뺀 D7 지표로 예측한 로그 매출(선형회귀, train 교차적합)의 셀 안 백분위",
     "한계ROAS": f"마케팅비 +50% 시 추가 $1당 예측 매출 (탄력성 {ELASTICITY})",
-    "사분면": "품질·마케팅비 셀 백분위 50 기준: 🟢 품질↑마케팅↓ / 🔵 둘 다↑ / 🟡 둘 다↓ / 🔴 품질↓마케팅↑ / ⚪ 마케팅비 없음 / ⛔ 수익 수단 없음",
+    "사분면": "품질 셀 백분위 50 이상이면 품질 높음(미만은 낮음) / 마케팅비 셀 백분위 50 이상이면 마케팅비 높음(미만은 낮음) → 4개 유형",
     "품질개선변수": "충돌률·플레이타임·업데이트 중 셀 중앙값까지 개선 시 (예상 추가 매출 × 실행 가능성)이 가장 큰 것. 🟢는 마케팅비 증액, 🔵는 유지",
     "주의": "모든 예상치는 상관 기반이며 인과 효과가 아님",
 }
+
+
+QT = {"🟢": "품질 높음·마케팅비 낮음", "🔵": "품질 높음·마케팅비 높음", "🟡": "품질 낮음·마케팅비 낮음",
+      "🔴": "품질 낮음·마케팅비 높음", "⚪": "마케팅비 없음", "⛔": "수익 수단 없음"}
+GREEN = QT["🟢"]
 
 
 # ---------------- 전처리 ----------------
@@ -65,7 +72,7 @@ def prep(d):
     ads, iap = d.contains_ads == "Yes", d.has_in_app_purchases == "Yes"
     d["struct"] = np.select([ads & iap, ads, iap], ["광고+IAP", "광고만", "IAP만"], "없음")
     d["zero"] = (d.monetization_model.isin(["Free", "Freemium"]) & ~ads & ~iap)   # 매출 0 규칙
-    d["cell"] = d.genre + " × " + d.struct
+    d["cell"] = d.genre + " × " + d.monetization_model
     return d
 
 
@@ -83,7 +90,7 @@ class Advisor:
         tr = prep(pd.read_csv(train_csv))
         cnt = tr[~tr.zero].groupby("cell").size()
         self.small = set(cnt[cnt < MIN_CELL].index)
-        tr["cell"] = [self._cell_of(c, s) for c, s in zip(tr.cell, tr.struct)]
+        tr["cell"] = [self._cell_of(c, s) for c, s in zip(tr.cell, tr.monetization_model)]
         trn = tr[~tr.zero].reset_index(drop=True)
         self.med_mk = float(trn.marketing_spend_usd.median())
         y = np.log1p(trn.total_revenue_usd.values)
@@ -126,7 +133,7 @@ class Advisor:
         if "game_id" not in df: df["game_id"] = [f"input_{i}" for i in range(len(df))]
         if "marketing_spend_usd" not in df: df["marketing_spend_usd"] = np.nan
         d = prep(df)
-        d["cell"] = [self._cell_of(c, s) for c, s in zip(d.cell, d.struct)]
+        d["cell"] = [self._cell_of(c, s) for c, s in zip(d.cell, d.monetization_model)]
         d["Q"] = predict(self._design(d), self.bq)
         base = d.pred_log.values if "pred_log" in d else predict(self._design(d, True), self.bf)
         d["E"] = np.expm1(base)
@@ -136,7 +143,7 @@ class Advisor:
         # 여러 개 + 예산: 입력한 게임들 안에서만 🟢 증액을 점수 순으로 배정
         if budget is not None:
             left = float(budget)
-            green = [g for g in out if g["사분면"] == "🟢"]
+            green = [g for g in out if g["사분면"] == GREEN]
             for g in sorted(green, key=lambda g: g["우선순위점수"], reverse=True):
                 amt = g["처방"]["증액_usd"]
                 ok = amt <= left
@@ -172,17 +179,15 @@ class Advisor:
               "하루플레이타임_분": {"현재": round(float(r.play), 1), "셀중앙값": round(float(cs.play), 1), "중앙값까지개선시_추가매출_usd": round(gains["플레이타임"], 0)},
               "업데이트간격_일": {"현재": round(float(r.upd), 1), "셀중앙값": round(float(cs.upd), 1), "중앙값까지개선시_추가매출_usd": round(gains["업데이트"], 0)}}
 
-        # 사분면·등급·점수
+        # 사분면·점수
         score = None
         if r.zero:
-            quad, grade = "⛔", "대상 제외"
+            quad = "⛔"
         elif not has_mk:
-            quad, grade = "⚪", "판단 보류"
+            quad = "⚪"
         else:
-            hi_q, hi_m = qp >= 50, mkp >= 50
+            hi_q, hi_m = qp >= Q_CUT, mkp >= M_CUT
             quad = "🟢" if hi_q and not hi_m else "🔵" if hi_q and hi_m else "🔴" if (not hi_q and hi_m) else "🟡"
-            dd = abs(qp - mkp)
-            grade = "고" if dd >= GRADE_HI else "중" if dd >= GRADE_MID else "저"
             score = round(qp * (100 - mkp) / 10000, 3)                 # 품질 백분위 × (1 − 마케팅비 백분위)
 
         # 처방
@@ -193,6 +198,8 @@ class Advisor:
             rx = {"축": "예산", "솔루션": "예산", "품질개선변수": None, "증액_usd": round(RAISE * S, 0)}
         elif quad == "🔵":
             rx = {"축": "유지", "솔루션": "유지", "품질개선변수": None}
+            if mk["한계ROAS"] is not None and mk["한계ROAS"] < 1:
+                rx["점검"] = "한계 ROAS 1 미만: 집행 축소 검토"
         else:
             best = max(gains, key=lambda k: gains[k] * FEAS[k])
             if gains[best] <= 0:
@@ -203,16 +210,19 @@ class Advisor:
                       "품질개선변수": {"변수": best, "현재값": round(float(cur), 2), "목표값_셀중앙값": round(float(tgt), 2), "단위": unit,
                                   "예상매출배수": round(1 + gains[best] / E, 2) if E > 0 else None,
                                   "예상추가매출_usd": round(gains[best], 0)}}
-        return {"game_id": r.game_id, "장르": r.genre, "수익화구조_광고IAP": r.struct, "과금방식": r.monetization_model,
-                "셀": r.cell, "마케팅": mk, "품질": ql, "사분면": quad, "등급": grade, "우선순위점수": score, "처방": rx}
+        if quad == "🔴":
+            rx["집행축소"] = {"감액_usd": round(CUT * S, 0), "감액비율": CUT,
+                          "예상매출감소_usd": round(E * (1 - (1 - CUT) ** ELASTICITY), 0)}
+        return {"game_id": r.game_id, "장르": r.genre, "과금방식": r.monetization_model,
+                "셀": r.cell, "마케팅": mk, "품질": ql, "사분면": QT[quad], "우선순위점수": score, "처방": rx}
 
 
 def summary(g):
     m, q, rx = g["마케팅"], g["품질"], g["처방"]
     mp = f"{m['마케팅비_셀백분위']}" if m["마케팅비_셀백분위"] is not None else "없음"
-    lines = [f"\n[{g['game_id']}] {g['셀']} ({g['과금방식']}) {g['사분면']} 등급 {g['등급']}",
+    lines = [f"\n[{g['game_id']}] {g['셀']} | {g['사분면']}",
              f"  품질 백분위 {q['품질_셀백분위']} · 마케팅비 백분위 {mp} · 우선순위 점수 {g['우선순위점수']} · 예측 90일 매출 ${m['예측매출_usd']:,.0f}"]
-    if g["사분면"] == "🟢":
+    if g["사분면"] == GREEN:
         lines.append(f"  솔루션: 마케팅비 +50% (+${rx['증액_usd']:,.0f}) → 추가 매출 약 ${m['마케팅비50%증액시_추가매출_usd']:,.0f}, 한계 ROAS {m['한계ROAS']}"
                      + (f"  [예산 {'내' if rx['예산내'] else '밖'}]" if "예산내" in rx else ""))
     elif rx["솔루션"] == "집행 보류":
@@ -221,7 +231,10 @@ def summary(g):
         v = rx["품질개선변수"]
         lines.append(f"  솔루션: {v['변수']} {v['현재값']}{v['단위']} → {v['목표값_셀중앙값']}{v['단위']} (셀 중앙값) · 예상 매출 ×{v['예상매출배수']} (+${v['예상추가매출_usd']:,.0f})")
     else:
-        lines.append(f"  솔루션: {rx['솔루션']}")
+        lines.append(f"  솔루션: {rx['솔루션']}" + (f" · {rx['점검']}" if "점검" in rx else ""))
+    if "집행축소" in rx:
+        c = rx["집행축소"]
+        lines.append(f"  + 집행 축소: 마케팅비 -{int(c['감액비율']*100)}% (-${c['감액_usd']:,.0f}) · 예상 매출 감소 약 ${c['예상매출감소_usd']:,.0f}")
     return "\n".join(lines)
 
 

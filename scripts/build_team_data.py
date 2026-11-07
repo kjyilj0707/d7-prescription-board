@@ -13,27 +13,31 @@ sub = pd.read_csv(f"{D}/submission_통합모델_cv0.6741.csv").set_index("game_i
 te["pred_log"] = np.log1p(te.game_id.map(sub))
 res = adv.diagnose(te.to_dict("records"))
 R = {g["game_id"]: g for g in res}
+EMO = {v: k for k, v in P.QT.items()}
+for g in res: g["사분면_코드"] = EMO.get(g["사분면"], g["사분면"])
+GRADE = lambda q, m: "판단 보류" if m is None else ("고" if abs(q - m) >= 55 else "중" if abs(q - m) >= 30 else "저")
 
 # 세부 진단용 셀 중앙값(세션 길이·하루 세션 수)은 팀 코드에 없어 같은 기준(train POS, 같은 셀)으로 추가 계산
-tr = P.prep(pd.read_csv(f"{D}/train.csv")); tr["cell"] = [adv._cell_of(c, s) for c, s in zip(tr.cell, tr.struct)]
+tr = P.prep(pd.read_csv(f"{D}/train.csv")); tr["cell"] = [adv._cell_of(c, s) for c, s in zip(tr.cell, tr.monetization_model)]
 trn = tr[~tr.zero]
 med_sess = trn.groupby("cell").avg_session_minutes.median(); med_daily = trn.groupby("cell").avg_daily_sessions.median()
 
 rows = []
 for _, r in P.prep(te).iterrows():
     g = R[r.game_id]
-    if g["사분면"] == "⛔": continue
+    if g["사분면_코드"] == "⛔": continue
     m, q, rx = g["마케팅"], g["품질"], g["처방"]
     sol = rx["솔루션"]; qv = rx.get("품질개선변수")
     gains = {"충돌률": q["충돌률"]["중앙값까지개선시_추가매출_usd"], "플레이타임": q["하루플레이타임_분"]["중앙값까지개선시_추가매출_usd"], "업데이트": q["업데이트간격_일"]["중앙값까지개선시_추가매출_usd"]}
     best_q = max(gains, key=lambda k: gains[k] * P.FEAS[k]) if max(gains.values()) > 0 else "없음"
     E = m["예측매출_usd"]
-    rows.append({"game_id": r.game_id, "split": "test", "genre": r.genre, "monetization_model": r.monetization_model, "채널": g["수익화구조_광고IAP"],
-        "셀": r.genre + " × " + g["수익화구조_광고IAP"], "비교셀": g["셀"], "비교셀_n": int(adv.med.loc[g["셀"], "n"]), "publisher_tier": r.publisher_tier,
+    rows.append({"game_id": r.game_id, "split": "test", "genre": r.genre, "monetization_model": r.monetization_model, "채널": r.struct,
+        "셀": r.genre + " × " + r.monetization_model, "비교셀": g["셀"], "비교셀_n": int(adv.med.loc[g["셀"], "n"]), "publisher_tier": r.publisher_tier,
         "pred_usd": E, "marketing_spend_usd": m["마케팅비_usd"], "roas": m["예측ROAS"], "한계roas": m["한계ROAS"], "추가매출_예산": m["마케팅비50%증액시_추가매출_usd"],
         "품질_pct": q["품질_셀백분위"], "마케팅_pct": m["마케팅비_셀백분위"],
         "불균형": None if m["마케팅비_셀백분위"] is None else round(q["품질_셀백분위"] - m["마케팅비_셀백분위"], 1),
-        "사분면": g["사분면"], "등급": g["등급"], "우선순위점수": g["우선순위점수"],
+        "사분면": g["사분면_코드"], "사분면_이름": g["사분면"], "등급": GRADE(q["품질_셀백분위"], m["마케팅비_셀백분위"]), "우선순위점수": g["우선순위점수"],
+        "점검": rx.get("점검"), "축소_usd": (rx.get("집행축소") or {}).get("감액_usd"), "축소_매출감소_usd": (rx.get("집행축소") or {}).get("예상매출감소_usd"),
         "playtime": q["하루플레이타임_분"]["현재"], "avg_session_minutes": r.avg_session_minutes, "avg_daily_sessions": r.avg_daily_sessions,
         "crash_rate_pct": q["충돌률"]["현재"], "update_frequency_days": r.update_frequency_days, "wishlist_prelaunch": r.wishlist_prelaunch, "apk_size_mb": r.apk_size_mb,
         "med_playtime": q["하루플레이타임_분"]["셀중앙값"], "med_crash_rate_pct": q["충돌률"]["셀중앙값"], "med_update_frequency_days": q["업데이트간격_일"]["셀중앙값"],
@@ -44,7 +48,7 @@ for _, r in P.prep(te).iterrows():
         "예상추가매출": m["마케팅비50%증액시_추가매출_usd"] if sol == "예산" else (qv["예상추가매출_usd"] if qv else 0.0)})
 out = pd.DataFrame(rows)
 out.to_csv("outputs/mvp/games_mvp.csv", index=False, encoding="utf-8-sig")
-zero_test = sum(1 for g in res if g["사분면"] == "⛔")
+zero_test = sum(1 for g in res if g["사분면_코드"] == "⛔")
 print(f"test 진단 {len(out)}개 + 수익 수단 없음 {zero_test}개")
 print("사분면", out.사분면.value_counts().to_dict(), "| 등급", out.등급.value_counts().to_dict(), "| 솔루션", out.솔루션.value_counts().to_dict())
 json.dump({"설명": P.NOTE, "games": res}, open("outputs/mvp/팀파이프라인_test결과.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
@@ -59,7 +63,7 @@ json.dump(payload, open("outputs/mvp/games_test.json", "w", encoding="utf-8"), e
 # ---- 브라우저 진단 엔진 (팀 Advisor 계수·분포 그대로) ----
 r6 = lambda v: round(float(v), 6)
 eng = {"coefq": {k: r6(v) for k, v in zip(["_int"] + adv.cols_q, adv.bq)}, "coeff": {k: r6(v) for k, v in zip(["_int"] + adv.cols_f, adv.bf)},
-       "med_mk": adv.med_mk, "small": sorted(adv.small), "elasticity": P.ELASTICITY, "feas": P.FEAS, "grade": [P.GRADE_HI, P.GRADE_MID],
+       "med_mk": adv.med_mk, "small": sorted(adv.small), "elasticity": P.ELASTICITY, "feas": P.FEAS, "grade": [55, 30], "cut": P.CUT, "q_cut": P.Q_CUT, "m_cut": P.M_CUT, "cell_basis": "monetization_model",
        "cells": {c: {"n": int(adv.med.loc[c, "n"]), "q": np.round(adv.ref_q[c], 4).tolist(), "m": np.round(adv.ref_mk[c], 2).tolist(),
                      "crash": float(adv.med.loc[c, "crash"]), "upd": float(adv.med.loc[c, "upd"]), "play": float(adv.med.loc[c, "play"]),
                      "sess": float(med_sess[c]), "daily": float(med_daily[c]), "roas": None} for c in adv.ref_q},
