@@ -71,6 +71,7 @@ nav.tabs a.on { color: var(--ink); font-weight: 600; border-bottom-color: var(--
 .btn:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 .btn.ghost { background: transparent; color: var(--accent); }
 .btn.ghost:hover { background: var(--bg); }
+a.btn.ghost { color: var(--accent); }
 .btn .ar { font-size: 18px; line-height: 1; }
 
 /* 본문 레이아웃 */
@@ -237,6 +238,24 @@ tbody tr { cursor: pointer; } tbody tr:hover { background: var(--layer); }
   </div>
 </div></section>
 
+<section class="hero-band" id="heroBoard" hidden><div class="hero-in">
+  <div class="hero-copy">
+    <div><p class="crumb"><a href="#diag">홈</a> / 전체 게임 비교</p>
+      <h1>이번 주 신작 게임,<br>어디부터 손볼까요</h1>
+      <p class="lead">D7 신작 게임을 품질과 광고비로 한눈에 보고, 먼저 손볼 게임을 고르세요. 점이나 행을 누르면 그 게임을 진단해요.</p></div>
+    <div class="btns"><button class="btn" type="button" data-scroll="#list">우선순위 목록 보기 <span class="ar">↓</span></button><a class="btn ghost" href="#diag">새 게임 진단하기 <span class="ar">→</span></a></div>
+  </div>
+  <div class="hero-art" aria-hidden="true"></div>
+</div></section>
+<section class="hero-band" id="heroCards" hidden><div class="hero-in">
+  <div class="hero-copy">
+    <div><p class="crumb"><a href="#diag">홈</a> / 실험카드</p>
+      <h1>고른 처방을<br>실행 계획으로</h1>
+      <p class="lead">처방을 담당 · 할 일 · 확인 지표 · 기간이 있는 실험카드로 정리해요. 노션이나 Jira에 붙여 넣을 수 있게 복사하거나 CSV로 받을 수 있어요.</p></div>
+    <div class="btns"><button class="btn" type="button" data-scroll="#cardForm">실험카드 작성하기 <span class="ar">↓</span></button><button class="btn ghost" type="button" data-scroll="#saved">저장한 카드 보기 <span class="ar">↓</span></button></div>
+  </div>
+  <div class="hero-art" aria-hidden="true"></div>
+</div></section>
 <div class="wrap">
 
   <section id="v-diag" hidden>
@@ -268,9 +287,7 @@ tbody tr { cursor: pointer; } tbody tr:hover { background: var(--layer); }
   </section>
 
   <section id="v-board" hidden style="display:grid;gap:24px">
-    <div class="pagehead"><p class="crumb"><a href="#diag">홈</a> / 전체 게임 비교</p><h1>전체 게임 비교</h1>
-      <p class="lead">이번 주 D7 신작 게임을 게임 품질과 광고비로 한눈에 보고, 먼저 손볼 게임을 고르세요. 점이나 행을 누르면 그 게임을 진단해요.</p></div>
-    <div class="tiles" id="tiles"></div>
+        <div class="tiles" id="tiles"></div>
     <div class="panel">
       <div class="filters">
         <select id="fGenre" aria-label="장르"></select>
@@ -301,9 +318,7 @@ tbody tr { cursor: pointer; } tbody tr:hover { background: var(--layer); }
   </section>
 
   <section id="v-cards" hidden style="display:grid;gap:24px">
-    <div class="pagehead"><p class="crumb"><a href="#diag">홈</a> / 실험카드</p><h1>실험카드</h1>
-      <p class="lead">고른 처방을 담당 · 할 일 · 확인 지표 · 기간이 있는 실행 계획으로 정리해요. 노션이나 Jira에 붙여 넣을 수 있게 복사하거나 CSV로 받을 수 있어요.</p></div>
-    <div class="panel" id="cardForm"></div>
+        <div class="panel" id="cardForm"></div>
     <div class="panel"><h2>저장한 실험카드</h2><div class="saved" id="saved"></div></div>
   </section>
 
@@ -802,11 +817,13 @@ function renderSaved() {
   if (store.length) { $("#cpAll").onclick = () => copyText(store.map(cardMd).join("\n\n"), `카드 ${store.length}개를 복사했어요`); $("#csvAll").onclick = downloadCsv; }
 }
 
+document.querySelectorAll("[data-scroll]").forEach(b => b.addEventListener("click", () => { const el = $(b.dataset.scroll); if (el) el.closest(".panel, .board")?.scrollIntoView({ behavior: "smooth", block: "start" }); }));
 function go(view, id) { if (id && view === "diag" && EX[id]) { loadExample(id); renderStep1(); setStep(3); } location.hash = view; show(view); }
 function show(view) {
   view = ["diag", "board", "cards"].includes(view) ? view : "diag";
   ["diag", "board", "cards"].forEach(v => $("#v-" + v).hidden = v !== view);
   IN("heroDiag").hidden = !(view === "diag" && step === 1);
+  IN("heroBoard").hidden = view !== "board"; IN("heroCards").hidden = view !== "cards";
   document.querySelectorAll("nav.tabs a").forEach(a => a.classList.toggle("on", a.dataset.v === view));
   if (view === "board") renderBoard(false);
   if (view === "cards") renderCards();
