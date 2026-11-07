@@ -230,6 +230,15 @@ tbody tr { cursor: pointer; } tbody tr:hover { background: var(--layer); }
 .gauge i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); }
 .gauge em { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--muted); left: 50%; }
 
+/* 추가 피처 더 보기 */
+.more-tog { all: unset; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; font-weight: 600; font-size: 15px; }
+.more-tog:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.more-tog .muted { font-weight: 400; font-size: 13px; }
+.xhint { font-size: 12px; color: var(--muted); }
+.xhint a { cursor: pointer; margin-left: 6px; }
+.ctl.set .lab span { color: var(--accent); }
+.more-rule { font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 12px; line-height: 1.7; }
+
 /* 로그인 */
 .mh-login { min-height: 30px; padding: 2px 12px; font-size: 13px; border: 1px solid var(--line-strong); background: var(--bg); cursor: pointer; }
 .mh-login:hover { background: var(--layer); }
@@ -330,6 +339,7 @@ tbody tr { cursor: pointer; } tbody tr:hover { background: var(--layer); }
       </div>
       <div class="panel"><div class="fgroup"><h3>수익화 구조 · 게임 정보</h3><div class="ctls" id="catCtls"></div></div></div>
       <div class="panel"><div class="fgroup"><h3>D7 지표 <span id="cellHint"></span></h3><div class="ctls" id="numCtls"></div></div></div>
+      <div class="panel" id="moreBox"></div>
       <div class="actions"><button id="back1b">← 이전</button><button class="primary" id="to3">전체 게임과 비교하기 →</button><span class="src" id="formNote"></span></div>
     </div>
 
@@ -383,6 +393,12 @@ tbody tr { cursor: pointer; } tbody tr:hover { background: var(--layer); }
 
 <script>
 const ENG = __ENGINE__;
+const TMETA = __TEAMMETA__;
+/*__TEAMJS__*/
+let TEAM_READY = false;
+fetch("model/team.bin").then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+  .then(buf => { TEAM.load(TMETA, buf); TEAM_READY = true; if (typeof step !== "undefined" && step === 3 && !IN("v-diag").hidden) renderDiag(); })
+  .catch(() => { TEAM_READY = false; });
 const RAW = __DATA__;
 const G = RAW.rows.map(r => Object.fromEntries(RAW.cols.map((c, i) => [c, r[i]])));
 const CELL = Object.fromEntries(RAW.cells.map(c => [c["비교셀"], c]));
@@ -447,10 +463,10 @@ function pushMine(d) {
   const old = MINE.findIndex(m => m.key === key);
   const name = old >= 0 ? MINE[old].name : loadedId && !dirty ? loadedId : `내 게임 ${MINE.filter(m => m.name.startsWith("내 게임")).length + 1}`;
   if (old >= 0) MINE.splice(old, 1);
-  MINE.unshift({ key, name, d, S: { ...S }, loadedId, dirty }); MINE = MINE.slice(0, 5); mineIdx = 0;
+  MINE.unshift({ key, name, d, S: structuredClone(S), loadedId, dirty }); MINE = MINE.slice(0, 5); mineIdx = 0;
 }
 function openSolution(m) {
-  S = { ...m.S }; loadedId = m.loadedId; dirty = m.dirty; renderStep1();
+  S = structuredClone(m.S); loadedId = m.loadedId; dirty = m.dirty; renderStep1();
   location.hash = "diag"; show("diag"); setStep(3);
 }
 function focusMine() {
@@ -581,7 +597,8 @@ const EXC = ENG.example_cols;
 const EX = Object.fromEntries(ENG.examples.map(r => { const o = Object.fromEntries(EXC.map((c, i) => [c, r[i]])); return [o.game_id, o]; }));
 const IN = id => document.getElementById(id);
 const DEFAULT = { ads: true, iap: true, pub: "Indie", reg: "US", mp: "Online", sess: 20, daily: 2, crash: 4.5, upd: 60, wish: 900, apk: 300, mkt: 4000 };  // example_game.json
-let S = { genre: null, mm: null, ...DEFAULT };
+let S = { genre: null, mm: null, ...DEFAULT, x: {} };
+let moreOpen = false;
 let loadedId = null, dirty = true, lastDiag = null, step = 1, mode = "dial";
 const MM_DESC = { Free: "무료로 받고 광고·아이템으로 수익", Freemium: "기본은 무료, 유료 아이템·기능 판매", Paid: "처음에 한 번 구매해서 플레이", Subscription: "매달 구독료를 내고 플레이" };
 const MM_KICK = { Free: "다운로드 무료", Freemium: "부분 유료", Paid: "단건 구매", Subscription: "월 구독" };
@@ -605,7 +622,7 @@ const fmtN = (n, v) => n.unit === "$" ? usd(v) : (n.d ? (+v).toFixed(n.d) : Math
 function chanOf() { return S.ads && S.iap ? "광고+IAP" : S.ads ? "광고만" : S.iap ? "IAP만" : "없음"; }
 function cellOf() { const c = `${S.genre} × ${S.mm}`; return ENG.small.includes(c) ? `${S.mm} (전체)` : c; }
 function median(arr) { return arr.length ? arr[Math.floor(arr.length / 2)] : null; }
-function markDirty() { dirty = true; IN("formNote").textContent = loadedId ? "값을 바꿔서 매출은 팀 내부 회귀 모델로 계산해요" : ""; }
+function markDirty() { dirty = true; IN("formNote").textContent = loadedId ? "값을 바꿔서 팀 앙상블 모델로 다시 계산해요" : ""; }
 
 function setStep(n) {
   step = n; ["s1", "s2", "s3"].forEach((id, i) => IN(id).hidden = i + 1 !== n);
@@ -621,6 +638,37 @@ function renderStep1() {
   IN("pGenre").querySelectorAll("button").forEach(b => b.onclick = () => { S.genre = b.dataset.v; markDirty(); renderStep1(); });
   IN("pMm").querySelectorAll("button").forEach(b => b.onclick = () => { S.mm = b.dataset.v; markDirty(); renderStep1(); });
   IN("to2").disabled = !(S.genre && S.mm);
+}
+const XLABEL = { sub_genre: "하위 장르", age_rating: "연령 등급", art_style: "아트 스타일", engine_used: "게임 엔진", event_theme: "출시 이벤트", price_usd: "가격 ($)",
+  release_date: "출시일", has_soft: "소프트 런치", soft_gap_days: "소프트 런치 → 정식 출시 (일)", cross_platform_available: "크로스플랫폼", cloud_save_support: "클라우드 저장" };
+const xfmt = (k, v) => typeof v === "boolean" ? (k === "has_soft" ? (v ? "있음" : "없음") : (v ? "지원" : "미지원")) : k === "price_usd" ? "$" + (+v).toFixed(2) : v;
+function renderMore() {
+  const box = IN("moreBox"); if (!S.genre || !S.mm) { box.innerHTML = ""; return; }
+  if (!S.x) S.x = {};
+  const D = xDefaults(S), E = extrasOf(S), isSet = k => S.x[k] !== undefined, nSet = XKEYS.filter(isSet).length;
+  const head = `<button type="button" class="more-tog" id="moreTog" aria-expanded="${moreOpen}"><span>${moreOpen ? "추가 피처 접기 ▴" : "추가 피처 더 보기 ▾"}</span><span class="muted">${XKEYS.length}개 · ${nSet ? nSet + "개 직접 입력, 나머지는 기본값" : "모두 기본값으로 계산 중"}</span></button>`;
+  if (!moreOpen) { box.innerHTML = head + `<p class="xhint">안 넣어도 돼요. 비어 있는 항목은 비슷한 게임(${S.genre} × ${S.mm}) 데이터로 정한 기본값으로 예측해요.</p>`; IN("moreTog").onclick = () => { moreOpen = true; renderMore(); }; return; }
+  const hint = k => `<span class="xhint">기본값 ${xfmt(k, D[k])}${isSet(k) ? `<a data-xreset="${k}">기본값으로</a>` : ""}</span>`;
+  const sel = (k, lv) => `<label class="ctl ${isSet(k) ? "set" : ""}"><div class="lab"><span>${XLABEL[k]}</span></div><select data-xsel="${k}">${lv.map(v => `<option ${String(E[k]) === String(v) ? "selected" : ""}>${v}</option>`).join("")}</select>${hint(k)}</label>`;
+  const tog = (k, a, b) => `<div class="ctl ${isSet(k) ? "set" : ""}"><div class="lab"><span>${XLABEL[k]}</span></div><div class="chips"><button type="button" data-xtog="${k}" data-v="1" class="${E[k] ? "on" : ""}">${a}</button><button type="button" data-xtog="${k}" data-v="0" class="${!E[k] ? "on" : ""}">${b}</button></div>${hint(k)}</div>`;
+  const free = S.mm === "Free" || S.mm === "Freemium";
+  box.innerHTML = head + `<div class="ctls">
+      ${sel("sub_genre", TMETA.sub_by_genre[S.genre] || [])}${sel("age_rating", TMETA.levels.age_rating)}${sel("art_style", TMETA.levels.art_style)}
+      ${sel("engine_used", TMETA.levels.engine_used)}${sel("event_theme", TMETA.levels.event_theme)}
+      <label class="ctl ${isSet("price_usd") ? "set" : ""}"><div class="lab"><span>${XLABEL.price_usd}</span></div><input type="number" step="0.01" min="0" data-xnum="price_usd" value="${free ? 0 : E.price_usd}" ${free ? "disabled" : ""}>${free ? `<span class="xhint">무료형은 가격 0으로 고정</span>` : hint("price_usd")}</label>
+      <label class="ctl ${isSet("release_date") ? "set" : ""}"><div class="lab"><span>${XLABEL.release_date}</span></div><input type="date" data-xdate="release_date" value="${E.release_date}" min="2018-01-01" max="2025-12-31">${hint("release_date")}</label>
+      ${tog("has_soft", "있음", "없음")}
+      ${E.has_soft ? `<label class="ctl ${isSet("soft_gap_days") ? "set" : ""}"><div class="lab"><span>${XLABEL.soft_gap_days}</span></div><input type="number" step="1" min="1" data-xnum="soft_gap_days" value="${E.soft_gap_days}">${hint("soft_gap_days")}</label>` : ""}
+      ${tog("cross_platform_available", "지원", "미지원")}${tog("cloud_save_support", "지원", "미지원")}
+    </div>
+    <p class="more-rule">기본값 정하는 법 (train+test 1만 개 게임 기준) · 하위 장르 = 이 장르에서 가장 흔한 값 · 연령 등급·아트·엔진·이벤트·크로스플랫폼·클라우드 저장 = 같은 장르 × 과금 방식에서 가장 흔한 값 · 가격 = 무료형 0, 유료형은 그룹 중앙값 · 소프트 런치 = 게임의 90%가 진행해서 '있음', 기간은 그룹 중앙값 · 출시일 = 데이터 중앙 출시일(출시 시점 효과를 평균 수준으로) · 주말 출시 여부는 출시일에서 자동 계산</p>`;
+  IN("moreTog").onclick = () => { moreOpen = false; renderMore(); };
+  const setX = (k, v) => { S.x[k] = v; markDirty(); };
+  box.querySelectorAll("[data-xsel]").forEach(s => s.onchange = () => { setX(s.dataset.xsel, s.value); renderMore(); });
+  box.querySelectorAll("[data-xtog]").forEach(b => b.onclick = () => { setX(b.dataset.xtog, b.dataset.v === "1"); renderMore(); });
+  box.querySelectorAll("[data-xnum]").forEach(i => i.onchange = () => { const v = parseFloat(i.value); if (Number.isFinite(v) && v >= 0) { setX(i.dataset.xnum, v); renderMore(); } });
+  box.querySelectorAll("[data-xdate]").forEach(i => i.onchange = () => { if (/^\d{4}-\d{2}-\d{2}$/.test(i.value)) { setX(i.dataset.xdate, i.value); renderMore(); } });
+  box.querySelectorAll("[data-xreset]").forEach(a => a.onclick = () => { delete S.x[a.dataset.xreset]; markDirty(); renderMore(); });
 }
 function renderStep2() {
   IN("s2type").textContent = `${S.genre} · ${S.mm}`;
@@ -645,15 +693,34 @@ function renderStep2() {
   IN("catCtls").querySelectorAll("[data-catsel]").forEach(s => s.onchange = () => { S[s.dataset.catsel] = s.value; markDirty(); });
   IN("numCtls").querySelectorAll("[data-num]").forEach(r => r.oninput = () => { const n = NUM.find(x => x.k === r.dataset.num); S[n.k] = fromPos(n, +r.value); IN("v_" + n.k).textContent = fmtN(n, S[n.k]); markDirty(); });
   IN("numCtls").querySelectorAll("[data-numin]").forEach(i => i.oninput = () => { const v = parseFloat(i.value); if (Number.isFinite(v)) { S[i.dataset.numin] = v; markDirty(); } });
+  renderMore();
 }
 function loadExample(id) {
   const e = EX[id]; if (!e) return;
   S = { genre: e.genre, mm: e.monetization_model, ads: e.contains_ads === "Yes", iap: e.has_in_app_purchases === "Yes", pub: e.publisher_tier, reg: e.region_focus,
         mp: e.multiplayer_support, sess: e.avg_session_minutes, daily: e.avg_daily_sessions, crash: e.crash_rate_pct, upd: e.update_frequency_days,
-        wish: e.wishlist_prelaunch, apk: e.apk_size_mb, mkt: e.marketing_spend_usd };
+        wish: e.wishlist_prelaunch, apk: e.apk_size_mb, mkt: e.marketing_spend_usd,
+        x: { sub_genre: e.sub_genre, age_rating: e.age_rating, art_style: e.art_style, engine_used: e.engine_used, event_theme: e.event_theme,
+             price_usd: e.price_usd, release_date: e.release_date, has_soft: !!e.soft_launch_date,
+             soft_gap_days: e.soft_launch_date ? Math.round((new Date(e.release_date) - new Date(e.soft_launch_date)) / 864e5) : xDefaults({ genre: e.genre, mm: e.monetization_model }).soft_gap_days,
+             cross_platform_available: !!e.cross_platform_available, cloud_save_support: !!e.cloud_save_support } };
   loadedId = id; dirty = false; IN("formNote").textContent = "";
 }
-function readForm() { return { ...S }; }
+function readForm() { return structuredClone(S); }
+// 추가 피처: 사용자가 안 넣으면 같은 장르 × 과금 방식 게임 데이터로 정한 기본값
+const XKEYS = ["sub_genre", "age_rating", "art_style", "engine_used", "event_theme", "price_usd", "release_date", "has_soft", "soft_gap_days", "cross_platform_available", "cloud_save_support"];
+function xDefaults(f) { const D = TMETA.defaults[`${f.genre}|${f.mm}`] || {}; const o = {}; XKEYS.forEach(k => o[k] = D[k]); return o; }
+function extrasOf(f) { return { ...xDefaults(f), ...(f.x || {}) }; }
+function teamRow(f) {
+  const e = extrasOf(f), rel = new Date(e.release_date + "T00:00:00Z");
+  const soft = e.has_soft ? new Date(rel - e.soft_gap_days * 864e5).toISOString().slice(0, 10) : null;
+  return { genre: f.genre, sub_genre: e.sub_genre, monetization_model: f.mm, contains_ads: f.ads ? "Yes" : "No", has_in_app_purchases: f.iap ? "Yes" : "No",
+    multiplayer_support: f.mp, age_rating: e.age_rating, art_style: e.art_style, engine_used: e.engine_used, region_focus: f.reg, publisher_tier: f.pub,
+    event_theme: e.event_theme, release_date: e.release_date, soft_launch_date: soft, price_usd: (f.mm === "Free" || f.mm === "Freemium") ? 0 : e.price_usd,
+    avg_session_minutes: f.sess, avg_daily_sessions: f.daily, crash_rate_pct: f.crash, apk_size_mb: f.apk, update_frequency_days: f.upd,
+    marketing_spend_usd: f.mkt > 0 ? f.mkt : null, wishlist_prelaunch: f.wish, is_weekend_release: [0, 6].includes(rel.getUTCDay()),
+    cross_platform_available: e.cross_platform_available, cloud_save_support: e.cloud_save_support };
+}
 function fillLevels() {
   const demo = ENG.demo.map(id => `<option value="${id}">${id} · ${qtxt((BY[id] || {})["사분면"])}</option>`).join("");
   IN("exSel").innerHTML = `<option value="">시연 게임 바로 보기</option>${demo}`;
@@ -682,7 +749,9 @@ function diagnose(f) {
   const qs = linear(ENG.coefq, feats(f, ch, false)), qp = pctIn(C.q, qs);
   const hasMk = f.mkt != null && f.mkt > 0, mp = hasMk ? pctIn(C.m, f.mkt) : null;
   const exact = loadedId && !dirty && EX[loadedId];
-  const cur = exact ? Math.expm1(exact.pred_log) : Math.expm1(linear(ENG.coeff, feats(f, ch, true)));
+  // 예상 90일 매출 = 팀 앙상블 모델(모델.zip, 공식 제출과 동일). 모델 파일을 못 받았을 때만 내부 회귀로 대체
+  const model = TEAM_READY;
+  const cur = model ? Math.expm1(TEAM.predictLog(teamRow(f))) : exact ? Math.expm1(exact.pred_log) : Math.expm1(linear(ENG.coeff, feats(f, ch, true)));
   const quad = !hasMk ? "⚪" : qp >= 50 ? (mp < 50 ? "🟢" : "🔵") : (mp < 50 ? "🟡" : "🔴");
   const gap = hasMk ? qp - mp : null, grade = gap == null ? "판단 보류" : Math.abs(gap) >= ENG.grade[0] ? "고" : Math.abs(gap) >= ENG.grade[1] ? "중" : "저";
   const score = hasMk ? Math.round(qp * (100 - mp)) / 10000 : null;
@@ -697,10 +766,15 @@ function diagnose(f) {
       `마케팅비 +50% (추가 비용 ${usd(f.mkt * 0.5)}) · 즉시`, `추가 $1당 예측 매출 ${f1(cur * (Math.pow(1.5, ENG.elasticity) - 1) / (f.mkt * 0.5))}`);
   const qual = sols.filter(s => s.k !== "예산" && s.ok);
   const allMult = qual.reduce((p, s) => p * s.mult, 1);
-  let rec = null;
+  // 팀 파이프라인(모델.zip) 처방 규칙
+  const mroas = hasMk ? cur * (Math.pow(1.5, ENG.elasticity) - 1) / (f.mkt * 0.5) : null, floor = ENG.mroas_floor ?? 2;
+  const bestQ = qual.length ? qual.slice().sort((a, b) => (b.mult - 1) * FEAS[b.k] - (a.mult - 1) * FEAS[a.k])[0] : null;
+  let rec = null, why = "";
   if (quad === "🟢") rec = sols.find(s => s.k === "예산");
-  else if (quad !== "🔵" && qual.length) rec = qual.slice().sort((a, b) => (b.mult - 1) * FEAS[b.k] - (a.mult - 1) * FEAS[a.k])[0];
-  return { f, ch, ref, C, play, crash, qs, qp, mp, quad, gap, grade, score, cur, exact: !!exact, sols, rec, allMult, qualCount: qual.length };
+  else if (quad === "🔵" && mroas < floor) why = `광고비를 더 써도 추가 1달러당 매출 ${f1(mroas)}달러 (${floor} 미만) → 추가 투자 효율 낮음`;
+  else if (quad === "🔵" && mp < qp) { rec = sols.find(s => s.k === "예산"); why = `품질·광고비 모두 높고, 추가 1달러당 매출 ${f1(mroas)}달러로 충분하며 광고비 순위가 더 낮음`; }
+  else rec = bestQ;
+  return { f, ch, ref, C, play, crash, qs, qp, mp, quad, gap, grade, score, cur, exact: !!exact, model, mroas, why, sols, rec, bestQ, allMult, qualCount: qual.length };
 }
 const COST0 = { "충돌률": 5000, "플레이타임": 15000, "업데이트": 10000 };   // 팀 가정 (화면에서 수정 가능)
 const PB = {
@@ -716,16 +790,20 @@ function verdictOf(d) {
   if (d.quad === "🟢") return `게임 품질은 비슷한 게임 ${rankTxt(d.qp)}인데 광고비는 적게 쓰고 있어요 → <b>광고 예산을 늘려 볼 만한 게임</b>이에요`;
   if (d.quad === "🔴") return `광고비는 많이 쓰는데 게임 품질은 비슷한 게임 ${rankTxt(d.qp)}예요 → <b>광고비를 줄이고 ${d.best ? d.best.k : "품질"}부터 고치세요</b>`;
   if (d.quad === "🟡") return `게임 품질이 비슷한 게임 ${rankTxt(d.qp)}이고 광고비도 적어요 → <b>${d.best ? d.best.k : "품질"}부터 고친 뒤 광고를 늘리세요</b>`;
-  if (d.quad === "🔵") return `품질도 좋고 광고비도 충분히 쓰고 있어요 → <b>지금 균형을 유지하세요</b>${d.mroas < 1 ? " (단, 광고비를 더 써도 1달러당 매출이 1달러 미만 → 축소 검토)" : ""}`;
+  if (d.quad === "🔵") return d.rec && d.rec.k === "예산" ? `품질도 광고비도 높은데 ${d.why} → <b>광고비를 더 늘려 보세요</b>`
+    : d.rec ? `품질도 광고비도 높은 편이에요 → <b>${d.rec.k}을 더 개선해 보세요</b>` : `품질도 광고비도 높은 편이에요. ${d.why || ""} → <b>지금 균형을 유지하세요</b>${d.mroas < 1 ? " (1달러 미만이라 광고비 축소 검토)" : ""}`;
   return `광고비 기록이 없어 예산 판단은 보류 → <b>${d.best ? d.best.k + " 개선" : "품질 진단"}</b>만 제안해요`;
 }
 let SIM = null;
 function initSim(d) {
-  const best = d.sols.filter(s => s.k !== "예산" && s.ok).sort((a, b) => (b.mult - 1) * FEAS[b.k] - (a.mult - 1) * FEAS[a.k])[0] || null;
+  const best = d.bestQ || null;
   d.best = best;
-  const q = k => { const s = d.sols.find(x => x.k === k); return { on: !!best && best.k === k && d.quad !== "🔵" && d.quad !== "🟢", ok: s.ok, target: s.ok ? +s.to : +s.from, cost: COST0[k] }; };
+  const recQ = d.rec && d.rec.k !== "예산" ? d.rec.k : null;
+  const q = k => { const s = d.sols.find(x => x.k === k); return { on: recQ === k, ok: s.ok, target: s.ok ? +s.to : +s.from, cost: COST0[k] }; };
+  const up = d.rec && d.rec.k === "예산";
   SIM = { "충돌률": q("충돌률"), "플레이타임": q("플레이타임"), "업데이트": q("업데이트"),
-          "예산": { on: d.quad === "🟢" || d.quad === "🔴", pct: d.quad === "🟢" ? 50 : d.quad === "🔴" ? -30 : 0 } };
+          "예산": { on: up || d.quad === "🔴", pct: up ? 50 : d.quad === "🔴" ? -30 : 0 } };
+  d.recKeys = [recQ, (up || d.quad === "🔴") ? "예산" : null].filter(Boolean);
 }
 function simCalc(d) {
   const cq = ENG.coefq, slope = cq.lpt + (cq["pt*" + d.f.genre] || 0), cur = d.cur, out = {};
@@ -798,11 +876,11 @@ function forestHtml(d) {
 }
 function paintResult() {
   const d = lastDiag, R = simCalc(d), M = { crash: d.C.crash, playtime: d.C.play, update: d.C.upd };
-  const srcTxt = d.exact ? "팀 최종 모델(CV RMSLE 0.6741) 예측" : "팀 내부 회귀 모델(광고비 포함) 예측";
+  const srcTxt = d.model ? "팀 앙상블 모델(모델.zip · CV RMSLE 0.6741) 예측" : "팀 내부 회귀 모델 예측 (앙상블 모델 불러오는 중)";
   const roas = d.f.mkt ? d.cur / d.f.mkt : null;
   const lowDaily = d.f.daily < d.C.daily;
   PB["플레이타임"].todo = lowDaily ? ["매일 접속 보상 · 출석 이벤트", "푸시 알림 보내는 시간대 A/B 테스트", "돌아온 이용자 보상"] : ["한 번 접속할 때 할 퀘스트·이벤트 추가", "레벨 난이도 조정", "보상 주는 간격 조정"];
-  const row = (k, icon, label, ctl, info) => { const o = R.out[k], on = SIM[k].on, isRec = (d.best && d.best.k === k) || (k === "예산" && (d.quad === "🟢" || d.quad === "🔴"));
+  const row = (k, icon, label, ctl, info) => { const o = R.out[k], on = SIM[k].on, isRec = (d.recKeys || []).includes(k);
     const pbk = k === "예산" ? (SIM[k].pct < 0 ? "예산-" : "예산+") : k, P = PB[pbk];
     return `<div class="simrow ${on ? "on" : ""} ${(SIM[k].ok === false && k !== "예산") ? "off" : ""}">
       <span class="ic">${icon}</span>
@@ -860,7 +938,7 @@ function initDiag() {
     if (!d || d.zero) { setStep(3); return; } pushMine(d); focusMine(); location.hash = "board"; show("board"); };
   IN("back2").onclick = () => setStep(2);
   IN("toPos").onclick = () => { focusMine(); location.hash = "board"; show("board"); };
-  IN("restart").onclick = () => { S = { genre: null, mm: null, ...DEFAULT }; loadedId = null; dirty = true; IN("exSel").value = ""; renderStep1(); setStep(1); };
+  IN("restart").onclick = () => { S = { genre: null, mm: null, ...DEFAULT, x: {} }; loadedId = null; dirty = true; IN("exSel").value = ""; renderStep1(); setStep(1); };
   IN("mDial").onclick = () => { mode = "dial"; renderStep2(); };
   IN("mType").onclick = () => { mode = "type"; renderStep2(); };
   IN("exSel").onchange = e => { if (e.target.value) { loadExample(e.target.value); renderStep1(); setStep(3); } };
@@ -901,14 +979,14 @@ function saveDiagnosis() {
   const ks = R.on.length ? R.on : [null];
   const cards = ks.map((k, i) => { const c = cardFromSim(d, k || undefined); c.대상 = c.대상.replace(/^[^·]+/, name + " "); return { id: id * 10 + i, diagId: id, game: name, quad: d.quad, at: new Date().toLocaleString("ko-KR"), ...c }; });
   store = [...cards, ...store]; saveStore();
-  DIAGS.unshift({ id, key, name, at: new Date().toLocaleString("ko-KR"), S: { ...S }, loadedId, dirty, sim: JSON.parse(JSON.stringify(SIM)),
+  DIAGS.unshift({ id, key, name, at: new Date().toLocaleString("ko-KR"), S: structuredClone(S), loadedId, dirty, sim: JSON.parse(JSON.stringify(SIM)),
     genre: d.f.genre, mm: d.f.mm, ch: d.ch, ref: d.ref, quad: d.quad, qp: d.qp, mp: d.mp, grade: d.grade, score: d.score, cur: d.cur,
     after: R.after, gain: R.gain, cost: R.cost, net: R.net, sols: R.on.map(k => ({ k, desc: SOL_DESC(d, k), gain: R.out[k].gain })), cards: cards.length });
   saveDiags(); renderSaved();
   toast(`${prev ? "진단을 새로 고쳐" : "진단을"} 저장했어요 · 실험카드 ${cards.length}장`);
 }
 function reopenDiag(rec) {
-  S = { ...rec.S }; loadedId = rec.loadedId; dirty = rec.dirty; pendingSim = rec.sim; renderStep1();
+  S = structuredClone(rec.S); if (!S.x) S.x = {}; loadedId = rec.loadedId; dirty = rec.dirty; pendingSim = rec.sim; renderStep1();
   location.hash = "diag"; show("diag"); setStep(3);
 }
 function renderHistory() {
@@ -1004,7 +1082,7 @@ function show(view) {
   window.scrollTo(0, 0);
 }
 $("#foot").innerHTML = `용어: 게임 품질 = 광고비를 빼고 D7 지표만으로 예상한 매출을 비슷한 게임(장르 × 과금 방식)끼리 줄 세운 순위 · 광고비 규모 = 같은 그룹 안 광고비 순위 · 광고비 1달러당 매출 = 예상 90일 매출 ÷ 초기 광고비 ·
-  광고비를 더 쓰면 1달러당 = 광고비 +50% 시 늘어나는 예상 매출 ÷ 늘어난 광고비 · 진단 로직 = 팀 파이프라인(priority_pipeline.py) · 예상 매출 = 팀 최종 앙상블(CV RMSLE 0.6741), 직접 입력 시 팀 내부 회귀 모델 ·
+  광고비를 더 쓰면 1달러당 = 광고비 +50% 시 늘어나는 예상 매출 ÷ 늘어난 광고비 · 진단 로직 = 팀 파이프라인(priority_pipeline.py) · 예상 매출 = 팀 앙상블 모델(모델.zip, CV RMSLE 0.6741 · HGB 41,000개 트리를 브라우저에서 그대로 계산) · 추가 피처를 안 넣으면 같은 장르 × 과금 방식 게임의 최빈값·중앙값 사용 · 둘 다 높은 유형은 추가 1달러당 매출 2 이상일 때만 증액 ·
   처방 효과 = 팀 품질 모델 계수 · 광고비 탄력성 0.555 · 처방 비용 = 팀 가정값(화면에서 수정) · 유형 = 품질·광고비 순위 50 기준 · 등급(대회 요구) = 두 순위 차이 55 이상 고, 30 이상 중 ·
   train 사후 검증: 기회 유형 실제 광고비 1달러당 매출 33.8달러 vs 위험 유형 3.3달러, 우선순위 점수와 실제 효율 상관 0.79 · 합성 데이터(교육용) · 모든 예상치는 상관 기반이며 인과 효과가 아님 · 실험카드는 이 브라우저에 저장`;
 window.addEventListener("hashchange", () => show(location.hash.slice(1)));
