@@ -1163,6 +1163,8 @@ function saveDiagnosis(silent) {
   if (silent) return;
   saveDiags(); renderSaved();
   toast(`${prev ? "진단을 새로 고쳐" : "진단을"} 저장했어요 · 실험카드 ${cards.length}장`);
+  location.hash = "cards"; show("cards");                        // 저장 후 실험카드 화면으로 이동
+  setTimeout(() => IN("saved").closest(".panel").scrollIntoView({ behavior: "smooth", block: "start" }), 50);
 }
 // 예전에 저장한 카드도 수식 근거로 다시 계산 (저장해 둔 입력값·처방 선택 그대로)
 const isFormula = c => /팀모델\(처방 후\)|예상 추가 매출 = \$0|= \$[\d,]+ − \$[\d,]+/.test(c.basis || "");
