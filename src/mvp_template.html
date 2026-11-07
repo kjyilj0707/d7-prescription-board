@@ -65,6 +65,13 @@ nav.tabs a.on { color: var(--ink); font-weight: 600; border-bottom-color: var(--
 .htile b { font-size: 18px; font-weight: 600; }
 .htile span { color: var(--muted); font-size: 15px; line-height: 1.55; }
 .htile svg { color: var(--accent); }
+.hero-classic { background: var(--accent-soft); border-bottom: 1px solid var(--line); }
+.hero-classic .hero-in { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 32px; padding-block: 36px 40px; align-items: stretch; }
+.hero-classic h1 { font-weight: 300; font-size: clamp(32px, 4.4vw, 54px); line-height: 1.18; color: var(--ink); }
+.hero-copy { display: grid; align-content: space-between; gap: 28px; min-width: 0; }
+.hero-copy .lead { font-size: 18px; color: var(--muted); max-width: 46ch; margin-top: 18px; font-weight: 300; }
+.hero-art { position: relative; min-height: 300px; background-image: radial-gradient(var(--line-strong) 1.2px, transparent 1.4px); background-size: 28px 28px; background-position: 6px 6px; }
+@media (max-width: 1000px) { .hero-classic .hero-in { grid-template-columns: 1fr; } .hero-art { min-height: 260px; } }
 .hero-chart { position: absolute; left: 8%; right: 8%; top: 50%; transform: translateY(-50%); background: var(--bg); border: 1px solid var(--line); padding: 22px 24px; display: grid; gap: 16px; }
 .ex-k { font-size: 12px; color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .ex-row { display: grid; gap: 6px; }
@@ -236,11 +243,19 @@ tbody tr { cursor: pointer; } tbody tr:hover { background: var(--layer); }
   <a href="#cards" data-v="cards">실험카드 <span id="cardCount"></span></a>
 </nav></div></div>
 
-<section class="hero-band" id="heroDiag"><div class="hero-in">
-  <div><p class="crumb"><a href="#diag">홈</a> / 게임 진단</p><h1>어떤 게임을 진단할까요?</h1><p class="hero-sub">출시 7일 지표를 넣으면 비슷한 게임과 비교해, 무엇을 고치고 광고비를 어떻게 조정하면 90일 매출이 얼마나 될지 보여 드려요.</p></div>
-  <label class="hsearch"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg><input type="search" data-gsearch placeholder="게임 ID로 바로 진단하기 (예: REV4_003355 또는 3355)" aria-label="게임 ID로 찾기"></label>
-  <div class="htiles"><button class="htile" type="button" id="heroStart"><b>진단 시작하기</b><span>장르와 수익화 방식부터 고르고, D7 지표를 입력하세요.</span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button><button class="htile" type="button" id="heroDemo"><b>시연 게임 결과 보기</b><span>위험 유형 시연 게임의 진단 결과와 처방을 바로 확인하세요.</span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button><button class="htile" type="button" data-goto="board"><b>전체 게임 비교</b><span>신작 게임 전체를 품질과 광고비로 놓고 우선순위를 보세요.</span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><circle cx="8" cy="15" r="1.3"/><circle cx="12" cy="10" r="1.3"/><circle cx="17" cy="7" r="1.3"/><circle cx="16" cy="14" r="1.3"/></svg></button></div>
+<section class="hero-band hero-classic" id="heroDiag"><div class="hero-in">
+  <div class="hero-copy">
+    <div><p class="crumb"><a href="#diag">홈</a> / 게임 진단</p>
+      <h1>출시 7일 데이터로 찾는<br>90일 매출 처방</h1>
+      <p class="lead">장르·수익화 방식과 D7 지표를 넣으면, 비슷한 게임과 비교해 무엇을 고치거나 광고비를 어떻게 조정하면 90일 매출이 얼마나 될지 보여 드려요.</p></div>
+    <div class="btns"><button class="btn" id="heroStart" type="button">진단 시작하기 <span class="ar">→</span></button>
+      <button class="btn ghost" id="heroDemo" type="button">시연 게임 결과 보기 <span class="ar">↓</span></button></div>
+  </div>
+  <div class="hero-art" aria-hidden="true">
+    
+  </div>
 </div></section>
+
 <section class="hero-band" id="heroBoard" hidden><div class="hero-in">
   <div><p class="crumb"><a href="#diag">홈</a> / 전체 게임 비교</p><h1>어디부터 손볼까요?</h1><p class="hero-sub">이번 주 D7 신작 게임을 품질과 광고비로 한눈에 보고, 먼저 손볼 게임을 고르세요.</p></div>
   <label class="hsearch"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg><input type="search" data-gsearch placeholder="게임 ID로 바로 진단하기 (예: REV4_003355 또는 3355)" aria-label="게임 ID로 찾기"></label>
