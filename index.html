@@ -278,6 +278,9 @@ body.on-landing .masthead, body.on-landing .subnav, body.on-landing .hero-band, 
 .ld-foot { font-size: 12px; color: var(--faint); }
 @media (max-width: 560px) { .ld-btn { width: 100%; min-width: 0; } }
 
+.rank-no { display: inline-block; min-width: 54px; padding: 2px 8px; margin-right: 8px; background: var(--accent); color: #fff; font-size: 12px; font-weight: 600; text-align: center; }
+.rank-gain { font-family: var(--mono); font-size: 13px; color: var(--accent); margin-right: 10px; }
+
 /* 로그인 */
 .mh-login { min-height: 30px; padding: 2px 12px; font-size: 13px; border: 1px solid var(--line-strong); background: var(--bg); cursor: pointer; }
 .mh-login:hover { background: var(--layer); }
@@ -369,7 +372,7 @@ body.on-landing .masthead, body.on-landing .subnav, body.on-landing .hero-band, 
 <section class="hero-band" id="heroCards" hidden><div class="hero-in">
   <div><p class="crumb"><a href="#start">홈</a> / 진단 기록 · 실험카드</p><h1>지금까지의 진단과 처방</h1><p class="hero-sub">저장한 게임 진단을 한눈에 비교하고, 처방마다 만들어진 실험카드를 노션이나 Jira에 붙여 넣으세요.</p></div>
   <label class="hsearch"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg><input type="search" data-gsearch placeholder="게임 ID로 바로 진단하기 (예: REV4_003355 또는 3355)" aria-label="게임 ID로 찾기"></label>
-  <div class="htiles"><button class="htile" type="button" data-scroll="#history"><b>진단 기록</b><span>저장한 게임들의 위치 · 처방 · 예상 매출을 한 표와 그래프로 보세요.</span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h7l2 2h9v11H3z"/><path d="M12 11v5M9.5 13.5h5"/></svg></button><button class="htile" type="button" data-scroll="#saved"><b>저장한 실험카드</b><span>저장한 카드를 마크다운으로 복사하거나 CSV로 내려받으세요.</span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></svg></button><button class="htile" type="button" data-goto="board"><b>전체 게임 비교</b><span>실험할 게임을 우선순위 목록에서 더 골라 보세요.</span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg></button></div>
+  <div class="htiles"><button class="htile" type="button" data-scroll="#history"><b>진단 기록</b><span>저장한 게임들의 위치 · 처방 · 예상 매출을 한 표와 그래프로 보세요.</span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h7l2 2h9v11H3z"/><path d="M12 11v5M9.5 13.5h5"/></svg></button><button class="htile" type="button" data-scroll="#saved"><b>솔루션 우선순위</b><span>저장한 카드를 마크다운으로 복사하거나 CSV로 내려받으세요.</span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></svg></button><button class="htile" type="button" data-goto="board"><b>전체 게임 비교</b><span>실험할 게임을 우선순위 목록에서 더 골라 보세요.</span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg></button></div>
 </div></section>
 <div class="wrap">
 
@@ -438,7 +441,7 @@ body.on-landing .masthead, body.on-landing .subnav, body.on-landing .hero-band, 
   <section id="v-cards" hidden style="display:grid;gap:24px">
         <div class="panel" id="history"></div>
         <div class="panel" id="cardForm"></div>
-    <div class="panel"><h2>저장한 실험카드</h2><div class="saved" id="saved"></div></div>
+    <div class="panel"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline"><h2>솔루션 우선순위</h2><span class="muted" style="font-size:12px">저장한 실험카드를 처방 시 예상 추가 매출이 큰 순으로 정렬</span></div><div class="saved" id="saved"></div></div>
   </section>
 
   <p class="note" id="foot"></p>
@@ -1223,7 +1226,7 @@ function saveDiagnosis() {
   const id = prev ? prev.id : Math.max(Date.now(), ...DIAGS.map(r => r.id + 1));
   if (prev) { store = store.filter(c => c.diagId !== id); DIAGS = DIAGS.filter(x => x !== prev); }
   const ks = R.on.length ? R.on : [null];
-  const cards = ks.map((k, i) => { const c = cardFromSim(d, k || undefined); c.대상 = c.대상.replace(/^[^·]+/, name + " "); return { id: id * 10 + i, diagId: id, game: name, quad: d.quad, at: new Date().toLocaleString("ko-KR"), ...c }; });
+  const cards = ks.map((k, i) => { const c = cardFromSim(d, k || undefined); c.대상 = c.대상.replace(/^[^·]+/, name + " "); return { id: id * 10 + i, diagId: id, game: name, quad: d.quad, gain: k ? Math.round(R.out[k].gain) : 0, at: new Date().toLocaleString("ko-KR"), ...c }; });
   store = [...cards, ...store]; saveStore();
   DIAGS.unshift({ id, key, name, at: new Date().toLocaleString("ko-KR"), S: structuredClone(S), loadedId, dirty, sim: JSON.parse(JSON.stringify(SIM)),
     genre: d.f.genre, mm: d.f.mm, ch: d.ch, ref: d.ref, quad: d.quad, qp: d.qp, mp: d.mp, grade: d.grade, score: d.score, cur: d.cur,
@@ -1280,7 +1283,7 @@ function renderCards() {
     <div class="actions"><button class="primary" id="saveCard">저장</button><button id="toDiag">처방 다시 고르기</button></div>
     <p class="muted" style="font-size:12px">자동 채운 문구는 진단 결과 기반 초안이에요. 수정 후 저장하세요.</p>`;
   $("#saveCard").onclick = () => {
-    const card = { id: Date.now(), game: loadedId && !dirty ? loadedId : "입력한 게임", quad: d.quad, at: new Date().toLocaleString("ko-KR") };
+    const card = { id: Date.now(), game: (MINE.find(m => m.key === JSON.stringify(d.f)) || {}).name || "입력한 게임", quad: d.quad, gain: Math.round(simCalc(d).gain), at: new Date().toLocaleString("ko-KR") };
     FIELDS.forEach(f => card[f] = $("#cf-" + f).value);
     store.unshift(card); saveStore(); renderSaved(); toast("실험카드를 저장했어요");
   };
@@ -1302,13 +1305,15 @@ function renderSaved() {
   $("#cardCount").textContent = DIAGS.length ? `(${DIAGS.length})` : "";
   renderHistory();
   const tools = store.length ? `<div class="actions"><button id="cpAll">전체 마크다운 복사 (노션·Jira용)</button><button id="csvAll">CSV 다운로드</button></div>` : "";
-  $("#saved").innerHTML = tools + (store.length ? store.map(c => `<article>
-      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>${chip(c.quad)} <span class="num">${c.game}</span> · ${(c.처방 || c.레버 || "").replace(/</g, "&lt;")}</b><span class="muted" style="font-size:12px">${c.at} <button data-cp="${c.id}">복사</button> <button data-del="${c.id}" aria-label="삭제">삭제</button></span></div>
+  const gainOf = c => { if (typeof c.gain === "number") return c.gain; const m = /\(([+−-])\$([\d,]+)\)/.exec(c.효과 || ""); return m ? (m[1] === "+" ? 1 : -1) * +m[2].replace(/,/g, "") : -Infinity; };
+  const ranked = store.slice().sort((a, b) => gainOf(b) - gainOf(a));
+  $("#saved").innerHTML = tools + (store.length ? ranked.map((c, i) => `<article>
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b><span class="rank-no">${i + 1}순위</span>${Number.isFinite(gainOf(c)) ? `<span class="rank-gain">${gainOf(c) >= 0 ? "+" : "−"}${usd(Math.abs(gainOf(c)))}</span>` : ""} ${chip(c.quad)} <span class="num">${c.game}</span> · ${(c.처방 || c.레버 || "").replace(/</g, "&lt;")}</b><span class="muted" style="font-size:12px">${c.at} <button data-cp="${c.id}">복사</button> <button data-del="${c.id}" aria-label="삭제">삭제</button></span></div>
       <dl>${FIELDS.filter(f => f !== "대상" && f !== "처방").map(f => `<dt>${LABELS[f]}</dt><dd style="white-space:pre-line">${(c[f] || "").replace(/</g, "&lt;")}</dd>`).join("")}</dl></article>`).join("")
     : `<p class="muted">아직 저장한 카드가 없어요. ① 게임 진단에서 처방을 고르고 「선택한 처방으로 실험카드 만들기」를 눌러 보세요.</p>`);
   $("#saved").querySelectorAll("[data-del]").forEach(b => b.onclick = () => { store = store.filter(c => String(c.id) !== b.dataset.del); saveStore(); renderSaved(); });
   $("#saved").querySelectorAll("[data-cp]").forEach(b => b.onclick = () => copyText(cardMd(store.find(c => String(c.id) === b.dataset.cp)), "카드를 마크다운으로 복사했어요"));
-  if (store.length) { $("#cpAll").onclick = () => copyText(store.map(cardMd).join("\n\n"), `카드 ${store.length}개를 복사했어요`); $("#csvAll").onclick = downloadCsv; }
+  if (store.length) { $("#cpAll").onclick = () => copyText(ranked.map((c, i) => `## ${i + 1}순위\n` + cardMd(c)).join("\n\n"), `카드 ${store.length}개를 복사했어요`); $("#csvAll").onclick = downloadCsv; }
 }
 
 document.querySelectorAll("[data-scroll]").forEach(b => b.addEventListener("click", () => { const el = $(b.dataset.scroll); if (el) el.closest(".panel, .board")?.scrollIntoView({ behavior: "smooth", block: "start" }); }));
