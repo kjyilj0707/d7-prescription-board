@@ -215,6 +215,9 @@ details.pb ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px; }
 .mine-hist button.on { border-color: var(--accent); color: var(--accent); }
 @media (max-width: 760px) { .mine-grid { grid-template-columns: 1fr 1fr; } .mine-grid > div { border-bottom: 1px solid var(--line); } }
 
+tr.me-row td { background: var(--accent-soft); } tr.me-row td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.tag { font-family: var(--font); }
+
 /* 보드 */
 .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border: 1px solid var(--line); }
 .tile { padding: 18px 20px; display: grid; gap: 6px; border-right: 1px solid var(--line); background: var(--bg); }
@@ -382,6 +385,7 @@ tbody tr { cursor: pointer; } tbody tr:hover { background: var(--layer); }
         <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline">
           <h2>우선순위 목록</h2><span class="muted" style="font-size:12px" id="sortNote"></span>
         </div>
+        <p id="mineRank" style="font-size:13px"></p>
         <div class="tbl" style="max-height:460px;overflow:auto"><table id="list"></table></div>
         <button id="more">더 보기</button>
         <div class="compare" id="compare"></div>
@@ -476,9 +480,25 @@ function openSolution(m) {
   S = structuredClone(m.S); loadedId = m.loadedId; dirty = m.dirty; renderStep1();
   location.hash = "diag"; show("diag"); setStep(3);
 }
+function mineRow() {
+  const m = MINE[mineIdx]; if (!m || !m.d || m.d.zero) return null;
+  const d = m.d, f = d.f, e = ENG.elasticity, sol = d.rec ? d.rec.k : "유지";
+  const add = sol === "예산" ? d.cur * (Math.pow(1.5, e) - 1) : d.rec ? d.cur * (d.rec.mult - 1) : 0;
+  return { mine: true, game_id: m.name, genre: f.genre, monetization_model: f.mm, "채널": d.ch, "비교셀": d.ref, "사분면": d.quad, "등급": d.grade, "솔루션": sol,
+    "예상추가매출": add, marketing_spend_usd: f.mkt > 0 ? f.mkt : null, pred_usd: d.cur, roas: f.mkt > 0 ? d.cur / f.mkt : null, "한계roas": d.mroas,
+    "품질_pct": d.qp, "마케팅_pct": d.mp, "불균형": d.gap, "우선순위점수": d.score,
+    crash_rate_pct: d.crash, med_crash_rate_pct: d.C.crash, playtime: d.play, med_playtime: d.C.play, update_frequency_days: f.upd, med_update_frequency_days: d.C.upd };
+}
+function nearOf(m, n) {
+  const d = m.d; if (!d || d.mp == null) return [];
+  return G.filter(g => g["비교셀"] === d.ref && g["마케팅_pct"] != null && g.game_id !== m.loadedId)
+    .map(g => [Math.hypot(g["품질_pct"] - d.qp, g["마케팅_pct"] - d.mp), g]).sort((a, b) => a[0] - b[0]).slice(0, n).map(x => x[1]);
+}
+const mineSkip = () => { const m = MINE[mineIdx]; return m && m.loadedId && !m.dirty ? m.loadedId : null; };
 function focusMine() {
   const m = MINE[mineIdx]; if (!m) return;
   $("#fGenre").value = m.d.ref.endsWith("(전체)") ? "" : m.d.f.genre; $("#fChan").value = m.d.f.mm; $("#fQuad").value = ""; $("#fGrade").value = ""; $("#fId").value = "";
+  selected = new Set(nearOf(m, 3).map(g => g.game_id));      // 가장 가까운 기존 게임 3개를 비교표에 미리 담기
 }
 function renderMine() {
   const box = $("#mine");
@@ -564,10 +584,18 @@ function renderScatter(rows) {
   $("#scatter").querySelectorAll("circle").forEach(c => c.addEventListener("click", () => go("diag", c.dataset.id)));
 }
 function renderList(rows) {
+  const me = mineRow(), ge = $("#fGenre").value, ch = $("#fChan").value, qu = $("#fQuad").value, gr = $("#fGrade").value;
+  let rank = null;
+  if (me && (!ge || me.genre === ge) && (!ch || me.monetization_model === ch) && (!qu || me["사분면"] === qu) && (!gr || me["등급"] === gr)) {
+    const skip = mineSkip(); rows = rows.filter(g => g.game_id !== skip);
+    const fn = sortFn(); let k = rows.findIndex(g => fn(me, g) <= 0); if (k < 0) k = rows.length;
+    rows = [...rows.slice(0, k), me, ...rows.slice(k)]; rank = k + 1; if (k >= shown) shown = k + 10;
+  }
+  $("#mineRank").innerHTML = rank ? `<i class="qd" style="background:var(--accent)"></i> <b>${me.game_id}</b> (내 게임) = 이 목록 ${rows.length.toLocaleString()}개 중 <b>${rank}위</b> · 파란 줄` : me ? `<span class="muted">내 게임은 지금 필터 조건 밖이에요</span>` : "";
   const head = `<thead><tr><th></th><th>게임</th><th>장르</th><th>광고/IAP</th><th>사분면</th><th>등급</th><th>처방 (현재 → 셀 중앙값)</th><th class="r">예상 추가 매출</th><th class="r">마케팅비</th><th class="r">예측 90일 매출</th><th class="r">예측 ROAS</th><th class="r">품질</th><th class="r">마케팅</th><th class="r">불균형</th><th class="r">점수</th></tr></thead>`;
-  const body = rows.slice(0, shown).map(g => `<tr data-id="${g.game_id}">
-    <td><input type="checkbox" aria-label="${g.game_id} 비교 선택" ${selected.has(g.game_id) ? "checked" : ""}></td>
-    <td class="num">${g.game_id}</td><td>${g.genre}</td><td>${g["채널"]}</td><td>${chip(g["사분면"])}</td><td><span class="grade">${g["등급"]}</span></td>
+  const body = rows.slice(0, shown).map(g => `<tr data-id="${g.mine ? "__mine" : g.game_id}" class="${g.mine ? "me-row" : ""}">
+    <td><input type="checkbox" aria-label="${g.game_id} 비교 선택" ${g.mine ? "checked disabled" : selected.has(g.game_id) ? "checked" : ""}></td>
+    <td class="num">${g.game_id}${g.mine ? ' <span class="tag">내 게임</span>' : ""}</td><td>${g.genre}</td><td>${g["채널"]}</td><td>${chip(g["사분면"])}</td><td><span class="grade">${g["등급"]}</span></td>
     <td>${improveText(g)}</td><td class="r">${g["예상추가매출"] ? "+" + usd(g["예상추가매출"]) : "–"}</td>
     <td class="r">${usd(g.marketing_spend_usd)}</td><td class="r">${usd(g.pred_usd)}</td><td class="r">${f1(g.roas)}</td><td class="r">${f1(g["품질_pct"])}</td><td class="r">${f1(g["마케팅_pct"])}</td>
     <td class="r">${g["불균형"] == null ? "–" : (g["불균형"] > 0 ? "+" : "") + f1(g["불균형"])}</td><td class="r">${g["우선순위점수"] == null ? "–" : (+g["우선순위점수"]).toFixed(3)}</td></tr>`).join("");
@@ -575,6 +603,7 @@ function renderList(rows) {
   $("#more").hidden = rows.length <= shown;
   $("#list").querySelectorAll("tbody tr").forEach(tr => {
     const id = tr.dataset.id, cb = tr.querySelector("input");
+    if (id === "__mine") { tr.addEventListener("click", () => openSolution(MINE[mineIdx])); const box = tr.closest(".tbl"); if (box) box.scrollTop = Math.max(0, tr.offsetTop - 120); return; }
     cb.addEventListener("click", e => { e.stopPropagation(); cb.checked ? selected.add(id) : selected.delete(id); renderBoard(false); });
     tr.addEventListener("click", () => go("diag", id));
   });
@@ -585,19 +614,20 @@ function reasonOf(g) {
   if (q === "🟢") return `${g.game_id}: 품질 셀 상위 ${f1(100 - g["품질_pct"])}%인데 마케팅비는 하위 ${f1(g["마케팅_pct"])}% → 마케팅비 +50% 시 추가 $1당 예측 매출 ${f1(g["한계roas"])} (셀 중앙값 ${f1(c.mroas)})`;
   if (q === "🔴") return `${g.game_id}: 마케팅비는 셀 상위 ${f1(100 - g["마케팅_pct"])}%인데 품질은 하위 ${f1(g["품질_pct"])}% → 증액 보류, ${g["솔루션"]} 개선 먼저`;
   if (q === "🟡") return `${g.game_id}: 품질 하위 ${f1(g["품질_pct"])}%, 마케팅비도 적음 → ${g["솔루션"]} 개선 후 증액 검토`;
-  if (q === "🔵") return `${g.game_id}: 품질·마케팅비 모두 셀 상위 → 현 상태 유지, 모니터링`;
+  if (q === "🔵") return g["솔루션"] === "예산" ? `${g.game_id}: 품질·광고비 모두 높고 추가 $1당 예측 매출 ${f1(g["한계roas"])}(2 이상) → 광고비 증액` : g["솔루션"] !== "유지" ? `${g.game_id}: 품질·광고비 모두 높음 → ${g["솔루션"]} 개선` : `${g.game_id}: 품질·광고비 모두 높고 추가 $1당 매출 ${f1(g["한계roas"])}(2 미만) → 유지`;
   return `${g.game_id}: 마케팅비 기록 없음 → ROAS 판단 보류, 품질 진단만`;
 }
 function renderCompare() {
   const sv = $("#fSort").value;
-  const sel = [...selected].map(id => BY[id]).filter(Boolean).sort(sortFn());
-  if (!sel.length) { $("#compare").innerHTML = `<p class="muted">게임을 3개 이상 체크하면 여기서 나란히 비교해요.</p>`; return; }
+  const me = mineRow(), skip = mineSkip();
+  const sel = [...selected].filter(id => id !== skip).map(id => BY[id]).filter(Boolean).concat(me ? [me] : []).sort(sortFn());
+  if (!sel.length || (me && sel.length === 1)) { $("#compare").innerHTML = `<p class="muted">${me ? "목록에서 기존 게임을 체크하면 내 게임과 나란히 비교해요." : "게임을 3개 이상 체크하면 여기서 나란히 비교해요."}</p>`; return; }
   $("#compare").innerHTML = `<h3>선택한 게임 비교 (${sel.length}개${sel.length < 3 ? " · 3개 이상 권장" : ""})</h3>
     <div class="tbl"><table><thead><tr><th>순위</th><th>게임</th><th>수익화 구조</th><th>사분면</th><th class="r">마케팅비</th><th class="r">품질</th><th class="r">마케팅</th><th class="r">한계 ROAS</th><th>처방 (현재 → 목표)</th><th class="r">예상 추가 매출</th><th class="r">실행 가능성</th></tr></thead><tbody>
-    ${sel.map((g, i) => `<tr data-id="${g.game_id}"><td class="num">${i + 1}</td><td class="num">${g.game_id}</td><td>${g.genre} · ${g["채널"]}</td><td>${chip(g["사분면"])}</td><td class="r">${usd(g.marketing_spend_usd)}</td><td class="r">${f1(g["품질_pct"])}</td><td class="r">${f1(g["마케팅_pct"])}</td><td class="r">${f1(g["한계roas"])}</td><td>${improveText(g)}</td><td class="r">${g["예상추가매출"] ? "+" + usd(g["예상추가매출"]) : "–"}</td><td class="r">${(FEASW[g["솔루션"]] ?? 0).toFixed(1)}</td></tr>`).join("")}
+    ${sel.map((g, i) => `<tr data-id="${g.mine ? "__mine" : g.game_id}" class="${g.mine ? "me-row" : ""}"><td class="num">${i + 1}</td><td class="num">${g.game_id}${g.mine ? ' <span class="tag">내 게임</span>' : ""}</td><td>${g.genre} · ${g["채널"]}</td><td>${chip(g["사분면"])}</td><td class="r">${usd(g.marketing_spend_usd)}</td><td class="r">${f1(g["품질_pct"])}</td><td class="r">${f1(g["마케팅_pct"])}</td><td class="r">${f1(g["한계roas"])}</td><td>${improveText(g)}</td><td class="r">${g["예상추가매출"] ? "+" + usd(g["예상추가매출"]) : "–"}</td><td class="r">${(FEASW[g["솔루션"]] ?? 0).toFixed(1)}</td></tr>`).join("")}
     </tbody></table></div><p class="muted" style="font-size:12px">순위 기준: ${{ team: "팀 우선순위 점수(품질 × 마케팅 여유)", gap: "심각성(품질·마케팅비 불균형)", impact: "영향도(예상 추가 매출) × 실행 가능성" }[sv]}</p><ol class="reason">${sel.map(g => `<li>${reasonOf(g)}</li>`).join("")}</ol>
     <div><button id="clearSel">선택 해제</button></div>`;
-  $("#compare").querySelectorAll("tbody tr").forEach(tr => tr.addEventListener("click", () => go("diag", tr.dataset.id)));
+  $("#compare").querySelectorAll("tbody tr").forEach(tr => tr.addEventListener("click", () => tr.dataset.id === "__mine" ? openSolution(MINE[mineIdx]) : go("diag", tr.dataset.id)));
   $("#clearSel").addEventListener("click", () => { selected.clear(); renderBoard(false); });
 }
 function renderBoard(resetShown = true) {
