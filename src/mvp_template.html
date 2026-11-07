@@ -282,8 +282,8 @@ tbody tr { cursor: pointer; } tbody tr:hover { background: var(--layer); }
     </div>
     <div class="board">
       <div class="panel scatter">
-        <h2>게임 품질 × 광고비 매트릭스</h2>
-        <p class="muted" style="font-size:12px">두 축 모두 비슷한 게임(장르 × 과금 방식)끼리 줄 세운 순위 · 점을 누르면 그 게임을 진단해요</p>
+        <h2>게임 품질 × 광고비</h2>
+        <p class="muted" style="font-size:12px">가로 = 게임 품질 순위, 세로 = 광고비 순위 (비슷한 게임끼리 0~100) · 색 = 예상 90일 매출 · 점을 누르면 그 게임을 진단해요</p>
         <div id="scatter"></div>
         <div class="legend" id="legend"></div>
       </div>
@@ -375,34 +375,35 @@ function renderTiles(rows) {
     <div class="tile"><span>등급 고 게임 처방 시 예상 추가 매출</span><b>${usd(add)}</b><span>모델·상관 기반 예상치</span></div>`;
 }
 
+// 매출 색 단계: 한 가지 파랑, 옅음 → 짙음 (전체 게임 기준 7분위, 필터해도 색이 바뀌지 않게)
+const REV_RAMP = ["#a6c8ff", "#78a9ff", "#4589ff", "#0f62fe", "#0043ce", "#002d9c", "#001d6c"];
+const REV_BREAKS = (() => { const v = G.map(g => g.pred_usd).filter(x => x > 0).sort((a, b) => a - b); return [1, 2, 3, 4, 5, 6].map(i => v[Math.floor(v.length * i / 7)]); })();
+const revColor = v => REV_RAMP[REV_BREAKS.filter(b => v >= b).length];
+const kfmt = v => v >= 1e6 ? "$" + (v / 1e6).toFixed(1) + "M" : "$" + Math.round(v / 1000) + "k";
 function renderScatter(rows) {
-  const W = 460, H = 380, P = 40, x = v => P + v / 100 * (W - P - 12), y = v => H - P - v / 100 * (H - P - 12);
-  const pts = rows.filter(g => g["마케팅_pct"] != null);
-  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="품질 백분위와 마케팅비 백분위 산점도">
-    <rect x="${x(50)}" y="${y(100)}" width="${x(100) - x(50)}" height="${y(50) - y(100)}" fill="var(--q-blue-soft)"/>
-    <rect x="${x(0)}" y="${y(100)}" width="${x(50) - x(0)}" height="${y(50) - y(100)}" fill="var(--q-green-soft)"/>
-    <rect x="${x(0)}" y="${y(50)}" width="${x(50) - x(0)}" height="${y(0) - y(50)}" fill="var(--q-yellow-soft)"/>
-    <rect x="${x(50)}" y="${y(50)}" width="${x(100) - x(50)}" height="${y(0) - y(50)}" fill="var(--q-red-soft)"/>
-    <text x="${x(2)}" y="${y(96)}" font-size="11" fill="var(--q-green)">🟢 예산 증액</text>
-    <text x="${x(98)}" y="${y(96)}" font-size="11" fill="var(--q-blue)" text-anchor="end">🔵 유지</text>
-    <text x="${x(2)}" y="${y(3)}" font-size="11" fill="var(--q-yellow)">🟡 품질 먼저</text>
-    <text x="${x(98)}" y="${y(3)}" font-size="11" fill="var(--q-red)" text-anchor="end">🔴 위험</text>`;
-  for (const t of [0, 50, 100]) {
-    s += `<text x="${x(t)}" y="${H - P + 16}" font-size="11" fill="var(--muted)" text-anchor="middle">${t}</text>
-          <text x="${P - 6}" y="${y(t) + 4}" font-size="11" fill="var(--muted)" text-anchor="end">${t}</text>`;
-  }
-  s += `<text x="${(W + P) / 2}" y="${H - 6}" font-size="12" fill="var(--muted)" text-anchor="middle">광고비 순위 → (오른쪽일수록 많이 씀)</text>
-        <text transform="translate(12 ${(H - P) / 2}) rotate(-90)" font-size="12" fill="var(--muted)" text-anchor="middle">게임 품질 순위 → (위일수록 좋음)</text>`;
+  const W = 470, H = 420, PL = 44, PB = 44, PT = 14, PR = 12;
+  const x = v => PL + v / 100 * (W - PL - PR), y = v => H - PB - v / 100 * (H - PB - PT);
+  const pts = rows.filter(g => g["마케팅_pct"] != null).sort((a, b) => a.pred_usd - b.pred_usd);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="가로 게임 품질 순위, 세로 광고비 순위, 색은 예상 90일 매출(짙을수록 높음)">`;
+  for (const v of [0, 25, 50, 75, 100]) s += `<line x1="${x(v)}" x2="${x(v)}" y1="${y(0)}" y2="${y(100)}" stroke="#f0f0f0"/><line x1="${x(0)}" x2="${x(100)}" y1="${y(v)}" y2="${y(v)}" stroke="#f0f0f0"/>
+      <text x="${x(v)}" y="${H - PB + 16}" font-size="11" fill="#6f6f6f" text-anchor="middle">${v}</text><text x="${PL - 8}" y="${y(v) + 4}" font-size="11" fill="#6f6f6f" text-anchor="end">${v}</text>`;
+  s += `<line x1="${x(50)}" x2="${x(50)}" y1="${y(0)}" y2="${y(100)}" stroke="#8d8d8d" stroke-dasharray="4 4"/><line x1="${x(0)}" x2="${x(100)}" y1="${y(50)}" y2="${y(50)}" stroke="#8d8d8d" stroke-dasharray="4 4"/>
+    <text x="${(x(0) + x(100)) / 2}" y="${H - 6}" font-size="12" fill="#525252" text-anchor="middle">게임 품질 순위 → (오른쪽일수록 좋음)</text>
+    <text transform="translate(12 ${(y(0) + y(100)) / 2}) rotate(-90)" font-size="12" fill="#525252" text-anchor="middle">광고비 순위 → (위일수록 많이 씀)</text>`;
   for (const g of pts) {
     const sel = selected.has(g.game_id);
-    s += `<circle cx="${x(g["마케팅_pct"]).toFixed(1)}" cy="${y(g["품질_pct"]).toFixed(1)}" r="${sel ? 6 : 2.6}" fill="${QUAD[g["사분면"]].color}"
-      fill-opacity="${sel ? 1 : .55}" ${sel ? 'stroke="var(--ink)" stroke-width="1.5"' : ""} data-id="${g.game_id}" style="cursor:pointer"><title>${g.game_id} · 품질 ${f1(g["품질_pct"])} / 마케팅 ${f1(g["마케팅_pct"])}</title></circle>`;
+    s += `<circle cx="${x(g["품질_pct"]).toFixed(1)}" cy="${y(g["마케팅_pct"]).toFixed(1)}" r="${sel ? 7 : 4}" fill="${revColor(g.pred_usd)}" stroke="${sel ? "#161616" : "#ffffff"}" stroke-width="${sel ? 2 : 1}"
+      data-id="${g.game_id}" style="cursor:pointer"><title>${g.game_id} · 예상 90일 매출 ${usd(g.pred_usd)} · 품질 ${f1(g["품질_pct"])} · 광고비 ${f1(g["마케팅_pct"])} · ${g["사분면"]}</title></circle>`;
   }
+  s += `<text x="${x(1)}" y="${y(97)}" font-size="11" fill="#393939" paint-order="stroke" stroke="#ffffff" stroke-width="4" stroke-linejoin="round" style="pointer-events:none">🔴 품질 낮음 · 광고비 많음</text><text x="${x(99)}" y="${y(97)}" font-size="11" fill="#393939" paint-order="stroke" stroke="#ffffff" stroke-width="4" stroke-linejoin="round" style="pointer-events:none" text-anchor="end">🔵 품질 높음 · 광고비 많음</text>
+    <text x="${x(1)}" y="${y(2)}" font-size="11" fill="#393939" paint-order="stroke" stroke="#ffffff" stroke-width="4" stroke-linejoin="round" style="pointer-events:none">🟡 품질 낮음 · 광고비 적음</text><text x="${x(99)}" y="${y(2)}" font-size="11" fill="#393939" paint-order="stroke" stroke="#ffffff" stroke-width="4" stroke-linejoin="round" style="pointer-events:none" text-anchor="end">🟢 품질 높음 · 광고비 적음</text>`;
   $("#scatter").innerHTML = s + "</svg>";
-  $("#legend").innerHTML = Object.entries(QUAD).map(([q, v]) => `<span>${q} ${v.name} ${rows.filter(g => g["사분면"] === q).length}</span>`).join("");
+  const labs = ["", ...REV_BREAKS.map(kfmt)];
+  $("#legend").innerHTML = `<div style="display:grid;gap:4px;width:100%"><span>색 = 예상 90일 매출 (짙을수록 높음)</span>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">${REV_RAMP.map(c => `<span style="height:10px;background:${c}"></span>`).join("")}</div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);font-size:11px">${REV_RAMP.map((c, i) => `<span>${i === 0 ? "낮음" : labs[i] + "+"}</span>`).join("")}</div></div>`;
   $("#scatter").querySelectorAll("circle").forEach(c => c.addEventListener("click", () => go("diag", c.dataset.id)));
 }
-
 function renderList(rows) {
   const head = `<thead><tr><th></th><th>게임</th><th>장르</th><th>광고/IAP</th><th>사분면</th><th>등급</th><th>처방 (현재 → 셀 중앙값)</th><th class="r">예상 추가 매출</th><th class="r">마케팅비</th><th class="r">예측 90일 매출</th><th class="r">예측 ROAS</th><th class="r">품질</th><th class="r">마케팅</th><th class="r">불균형</th><th class="r">점수</th></tr></thead>`;
   const body = rows.slice(0, shown).map(g => `<tr data-id="${g.game_id}">
