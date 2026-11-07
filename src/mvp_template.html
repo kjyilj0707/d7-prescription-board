@@ -9,7 +9,7 @@
   --bg: #ffffff; --layer: #f4f4f4; --layer2: #e8e8e8; --line: #e0e0e0; --line-strong: #8d8d8d;
   --ink: #161616; --muted: #525252; --faint: #6f6f6f;
   --accent: #0f62fe; --accent-hover: #0353e9; --accent-soft: #edf5ff; --on-accent: #ffffff;
-  --q-green: #198038; --q-blue: #0043ce; --q-yellow: #8e6a00; --q-red: #da1e28; --q-gray: #6f6f6f;
+  --q-green: #4f7d64; --q-blue: #4a6489; --q-yellow: #a38446; --q-red: #a85a52; --q-gray: #a8a8a8;
   --q-green-soft: #defbe6; --q-blue-soft: #d0e2ff; --q-yellow-soft: #fcf4d6; --q-red-soft: #fff1f1; --q-gray-soft: #f4f4f4;
   --font: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
@@ -144,7 +144,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .simrow { display: grid; grid-template-columns: 28px minmax(0, 1fr) 250px; gap: 16px; align-items: start; border: 1px solid var(--line); padding: 18px; background: var(--bg); }
 .simrow.on { border: 2px solid var(--accent); padding: 17px; }
 .simrow.off { background: var(--layer); color: var(--muted); }
-.simrow .ic { font-size: 20px; text-align: center; }
+.simrow .ic { width: 6px; height: 6px; margin: 8px auto 0; background: var(--line-strong); font-size: 0; }
+.simrow.on .ic { background: var(--accent); }
 .simrow .mid { display: grid; gap: 8px; min-width: 0; }
 .simrow .right { display: grid; gap: 6px; text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 13px; }
 .simrow .right b { font-size: 18px; font-weight: 400; }
@@ -167,10 +168,11 @@ details.pb ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px; }
 .bar span.v { font-family: var(--mono); text-align: right; color: var(--ink); }
 
 /* 칩 (사분면) */
-.chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; font-size: 12px; font-weight: 500; }
-.c-g { background: var(--q-green-soft); color: var(--q-green); } .c-b { background: var(--q-blue-soft); color: var(--q-blue); }
-.c-y { background: var(--q-yellow-soft); color: var(--q-yellow); } .c-r { background: var(--q-red-soft); color: var(--q-red); }
-.c-n { background: var(--q-gray-soft); color: var(--q-gray); }
+.chip { display: inline-flex; align-items: center; gap: 7px; padding: 2px 0; font-size: 12px; font-weight: 500; color: var(--ink); }
+.qd { display: inline-block; width: 7px; height: 7px; border-radius: 50%; flex: none; vertical-align: 1px; }
+.c-g .qd, .qd.c-g { background: var(--q-green); } .c-b .qd, .qd.c-b { background: var(--q-blue); }
+.c-y .qd, .qd.c-y { background: var(--q-yellow); } .c-r .qd, .qd.c-r { background: var(--q-red); } .c-n .qd, .qd.c-n { background: var(--q-gray); }
+#s2type.chip { padding: 3px 10px; background: var(--layer); }
 .grade { font-weight: 600; font-size: 12px; padding: 2px 8px; border: 1px solid var(--line-strong); }
 
 /* 보드 */
@@ -251,7 +253,7 @@ tbody tr { cursor: pointer; } tbody tr:hover { background: var(--layer); }
     <div class="sec" id="s2" hidden>
       <div class="actions" style="justify-content:space-between">
         <div class="sum"><h2>D7 지표 입력</h2><span class="chip c-b" id="s2type"></span><button id="back1" style="min-height:32px;padding:4px 12px;font-size:13px">유형 바꾸기</button></div>
-        <div class="seg" role="group" aria-label="입력 방식"><button id="mDial" class="on">🎛 다이얼</button><button id="mType">⌨ 직접 입력</button></div>
+        <div class="seg" role="group" aria-label="입력 방식"><button id="mDial" class="on">다이얼</button><button id="mType">직접 입력</button></div>
       </div>
       <div class="panel"><div class="fgroup"><h3>수익화 구조 · 게임 정보</h3><div class="ctls" id="catCtls"></div></div></div>
       <div class="panel"><div class="fgroup"><h3>D7 지표 <span id="cellHint"></span></h3><div class="ctls" id="numCtls"></div></div></div>
@@ -282,8 +284,8 @@ tbody tr { cursor: pointer; } tbody tr:hover { background: var(--layer); }
     </div>
     <div class="board">
       <div class="panel scatter">
-        <h2>게임 품질 × 광고비</h2>
-        <p class="muted" style="font-size:12px">가로 = 게임 품질 순위, 세로 = 광고비 순위 (비슷한 게임끼리 0~100) · 색 = 예상 90일 매출 · 점을 누르면 그 게임을 진단해요</p>
+        <h2>품질과 광고비</h2>
+        <p class="muted" style="font-size:12px">비슷한 게임(장르 × 과금 방식) 안 순위 0–100 · 색이 짙을수록 예상 매출이 높음</p>
         <div id="scatter"></div>
         <div class="legend" id="legend"></div>
       </div>
@@ -334,7 +336,8 @@ const sortFn = () => { const v = $("#fSort").value;
 const impactScore = g => (g["예상추가매출"] || 0) * (FEASW[g["솔루션"]] ?? 0);
 const usd = v => v == null ? "–" : "$" + Math.round(v).toLocaleString("en-US");
 const f1 = v => v == null ? "–" : (+v).toFixed(1);
-const chip = q => `<span class="chip c-${QUAD[q].k}">${q} ${QUAD[q].name}</span>`;
+const chip = q => QUAD[q] ? `<span class="chip c-${QUAD[q].k}"><i class="qd"></i>${QUAD[q].name}</span>` : "";
+const qtxt = q => QUAD[q] ? QUAD[q].name : "";
 let selected = new Set(), shown = 40, current = null;
 let store = []; try { store = JSON.parse(localStorage.getItem("d7cards") || "[]"); } catch (e) { store = []; }
 const saveStore = () => { try { localStorage.setItem("d7cards", JSON.stringify(store)); } catch (e) {} };
@@ -343,7 +346,7 @@ function toast(t) { const d = document.createElement("div"); d.className = "toas
 function opts(sel, label, vals) { sel.innerHTML = `<option value="">${label}</option>` + vals.map(v => `<option>${v}</option>`).join(""); }
 opts($("#fGenre"), "장르 전체", [...new Set(G.map(g => g.genre))].sort());
 opts($("#fChan"), "과금 방식 전체", ["Free", "Freemium", "Paid", "Subscription"]);
-$("#fQuad").innerHTML = `<option value="">사분면 전체</option>` + Object.entries(QUAD).map(([q, v]) => `<option value="${q}">${q} ${v.name}</option>`).join("");
+$("#fQuad").innerHTML = `<option value="">사분면 전체</option>` + Object.entries(QUAD).map(([q, v]) => `<option value="${q}">${v.name}</option>`).join("");
 
 function filtered() {
   const ge = $("#fGenre").value, ch = $("#fChan").value, qu = $("#fQuad").value, gr = $("#fGrade").value, id = $("#fId").value.trim().toUpperCase();
@@ -352,17 +355,17 @@ function filtered() {
 }
 function improveText(g) {
   const s = g["솔루션"];
-  if (s === "충돌률") return `💥 충돌률 ${(+g.crash_rate_pct).toFixed(2)}% → ${(+g.med_crash_rate_pct).toFixed(2)}%`;
-  if (s === "플레이타임") return `🕐 플레이타임 ${Math.round(g.playtime)}분 → ${Math.round(g.med_playtime)}분`;
-  if (s === "업데이트") return `🔄 업데이트 ${Math.round(g.update_frequency_days)}일 → ${Math.round(g.med_update_frequency_days)}일`;
-  if (s === "예산") return `💰 마케팅비 ${usd(g.marketing_spend_usd)} → ${usd(g.marketing_spend_usd * 1.5)}`;
-  return "✅ 유지";
+  if (s === "충돌률") return `충돌률 ${(+g.crash_rate_pct).toFixed(2)}% → ${(+g.med_crash_rate_pct).toFixed(2)}%`;
+  if (s === "플레이타임") return `플레이타임 ${Math.round(g.playtime)}분 → ${Math.round(g.med_playtime)}분`;
+  if (s === "업데이트") return `업데이트 ${Math.round(g.update_frequency_days)}일 → ${Math.round(g.med_update_frequency_days)}일`;
+  if (s === "예산") return `마케팅비 ${usd(g.marketing_spend_usd)} → ${usd(g.marketing_spend_usd * 1.5)}`;
+  return "유지";
 }
 function solText(g) {
   const s = g["솔루션"], L = LEVER[s] || {};
-  if (s === "예산") return `${L.icon} 마케팅비 +50%`;
-  if (s === "유지") return `${L.icon} 유지`;
-  return `${L.icon} ${s} 개선`;
+  if (s === "예산") return `마케팅비 +50%`;
+  if (s === "유지") return `유지`;
+  return `${s} 개선`;
 }
 
 function renderTiles(rows) {
@@ -370,45 +373,44 @@ function renderTiles(rows) {
   const add = rows.filter(g => g["등급"] === "고").reduce((s, g) => s + (g["예상추가매출"] || 0), 0);
   $("#tiles").innerHTML = `
     <div class="tile"><span>진단 게임 (D7 신작)</span><b>${rows.length.toLocaleString()}</b><span>수익 수단 없는 게임 ${RAW.zero_test}개 별도</span></div>
-    <div class="tile"><span>🔴 위험 · 품질 개선 + 예산 재검토</span><b style="color:var(--q-red)">${cnt("🔴")}</b><span>돈은 쓰는데 품질 낮음</span></div>
-    <div class="tile"><span>🟢 기회 · 예산 증액</span><b style="color:var(--q-green)">${cnt("🟢")}</b><span>품질 좋은데 돈을 적게 씀</span></div>
+    <div class="tile"><span class="chip c-r"><i class="qd"></i>위험 · 품질 개선 + 예산 재검토</span><b>${cnt("🔴")}</b><span>돈은 쓰는데 품질 낮음</span></div>
+    <div class="tile"><span class="chip c-g"><i class="qd"></i>기회 · 예산 증액</span><b>${cnt("🟢")}</b><span>품질 좋은데 돈을 적게 씀</span></div>
     <div class="tile"><span>등급 고 게임 처방 시 예상 추가 매출</span><b>${usd(add)}</b><span>모델·상관 기반 예상치</span></div>`;
 }
 
-// 매출 색 단계: 한 가지 파랑, 옅음 → 짙음 (전체 게임 기준 7분위, 필터해도 색이 바뀌지 않게)
-const REV_RAMP = ["#a6c8ff", "#78a9ff", "#4589ff", "#0f62fe", "#0043ce", "#002d9c", "#001d6c"];
-const REV_BREAKS = (() => { const v = G.map(g => g.pred_usd).filter(x => x > 0).sort((a, b) => a - b); return [1, 2, 3, 4, 5, 6].map(i => v[Math.floor(v.length * i / 7)]); })();
+// 매출 색: 한 가지 차분한 남색, 옅음 → 짙음 (전체 게임 기준 5분위, 필터해도 색 고정)
+const REV_RAMP = ["#d5dde8", "#a9b9cf", "#7790b0", "#4b6890", "#253f63"];
+const REV_BREAKS = (() => { const v = G.map(g => g.pred_usd).filter(x => x > 0).sort((a, b) => a - b); return [1, 2, 3, 4].map(i => v[Math.floor(v.length * i / 5)]); })();
 const revColor = v => REV_RAMP[REV_BREAKS.filter(b => v >= b).length];
 const kfmt = v => v >= 1e6 ? "$" + (v / 1e6).toFixed(1) + "M" : "$" + Math.round(v / 1000) + "k";
 function renderScatter(rows) {
-  const W = 470, H = 420, PL = 44, PB = 44, PT = 14, PR = 12;
+  const W = 470, H = 430, PL = 40, PB = 46, PT = 26, PR = 10;
   const x = v => PL + v / 100 * (W - PL - PR), y = v => H - PB - v / 100 * (H - PB - PT);
   const pts = rows.filter(g => g["마케팅_pct"] != null).sort((a, b) => a.pred_usd - b.pred_usd);
-  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="가로 게임 품질 순위, 세로 광고비 순위, 색은 예상 90일 매출(짙을수록 높음)">`;
-  for (const v of [0, 25, 50, 75, 100]) s += `<line x1="${x(v)}" x2="${x(v)}" y1="${y(0)}" y2="${y(100)}" stroke="#f0f0f0"/><line x1="${x(0)}" x2="${x(100)}" y1="${y(v)}" y2="${y(v)}" stroke="#f0f0f0"/>
-      <text x="${x(v)}" y="${H - PB + 16}" font-size="11" fill="#6f6f6f" text-anchor="middle">${v}</text><text x="${PL - 8}" y="${y(v) + 4}" font-size="11" fill="#6f6f6f" text-anchor="end">${v}</text>`;
-  s += `<line x1="${x(50)}" x2="${x(50)}" y1="${y(0)}" y2="${y(100)}" stroke="#8d8d8d" stroke-dasharray="4 4"/><line x1="${x(0)}" x2="${x(100)}" y1="${y(50)}" y2="${y(50)}" stroke="#8d8d8d" stroke-dasharray="4 4"/>
-    <text x="${(x(0) + x(100)) / 2}" y="${H - 6}" font-size="12" fill="#525252" text-anchor="middle">게임 품질 순위 → (오른쪽일수록 좋음)</text>
-    <text transform="translate(12 ${(y(0) + y(100)) / 2}) rotate(-90)" font-size="12" fill="#525252" text-anchor="middle">광고비 순위 → (위일수록 많이 씀)</text>`;
+  const T = (xx, yy, txt, anc = "start", extra = "") => `<text x="${xx}" y="${yy}" font-size="11" fill="#8d8d8d" text-anchor="${anc}" letter-spacing=".02em" ${extra}>${txt}</text>`;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="가로 게임 품질 순위, 세로 광고비 순위, 색은 예상 90일 매출(짙을수록 높음)">
+    <rect x="${x(0)}" y="${y(100)}" width="${x(100) - x(0)}" height="${y(0) - y(100)}" fill="#fafafa" stroke="#e0e0e0"/>`;
+  for (const v of [0, 50, 100]) s += T(x(v), H - PB + 16, v, "middle") + T(PL - 8, y(v) + 4, v, "end");
+  s += `<line x1="${x(50)}" x2="${x(50)}" y1="${y(0)}" y2="${y(100)}" stroke="#c6c6c6"/><line x1="${x(0)}" x2="${x(100)}" y1="${y(50)}" y2="${y(50)}" stroke="#c6c6c6"/>`;
   for (const g of pts) {
     const sel = selected.has(g.game_id);
-    s += `<circle cx="${x(g["품질_pct"]).toFixed(1)}" cy="${y(g["마케팅_pct"]).toFixed(1)}" r="${sel ? 7 : 4}" fill="${revColor(g.pred_usd)}" stroke="${sel ? "#161616" : "#ffffff"}" stroke-width="${sel ? 2 : 1}"
-      data-id="${g.game_id}" style="cursor:pointer"><title>${g.game_id} · 예상 90일 매출 ${usd(g.pred_usd)} · 품질 ${f1(g["품질_pct"])} · 광고비 ${f1(g["마케팅_pct"])} · ${g["사분면"]}</title></circle>`;
+    s += `<circle cx="${x(g["품질_pct"]).toFixed(1)}" cy="${y(g["마케팅_pct"]).toFixed(1)}" r="${sel ? 6 : 3.2}" fill="${revColor(g.pred_usd)}" ${sel ? 'stroke="#161616" stroke-width="1.5"' : 'fill-opacity=".9"'}
+      data-id="${g.game_id}" style="cursor:pointer"><title>${g.game_id} · 예상 90일 매출 ${usd(g.pred_usd)} · 품질 ${f1(g["품질_pct"])} · 광고비 ${f1(g["마케팅_pct"])} · ${qtxt(g["사분면"])}</title></circle>`;
   }
-  s += `<text x="${x(1)}" y="${y(97)}" font-size="11" fill="#393939" paint-order="stroke" stroke="#ffffff" stroke-width="4" stroke-linejoin="round" style="pointer-events:none">🔴 품질 낮음 · 광고비 많음</text><text x="${x(99)}" y="${y(97)}" font-size="11" fill="#393939" paint-order="stroke" stroke="#ffffff" stroke-width="4" stroke-linejoin="round" style="pointer-events:none" text-anchor="end">🔵 품질 높음 · 광고비 많음</text>
-    <text x="${x(1)}" y="${y(2)}" font-size="11" fill="#393939" paint-order="stroke" stroke="#ffffff" stroke-width="4" stroke-linejoin="round" style="pointer-events:none">🟡 품질 낮음 · 광고비 적음</text><text x="${x(99)}" y="${y(2)}" font-size="11" fill="#393939" paint-order="stroke" stroke="#ffffff" stroke-width="4" stroke-linejoin="round" style="pointer-events:none" text-anchor="end">🟢 품질 높음 · 광고비 적음</text>`;
+  s += T(x(0), PT - 10, "품질 낮음 · 광고비 많음") + T(x(100), PT - 10, "품질 높음 · 광고비 많음", "end")
+    + T((x(0) + x(100)) / 2, H - 8, "게임 품질 순위 →", "middle", 'fill="#525252"')
+    + `<text transform="translate(11 ${(y(0) + y(100)) / 2}) rotate(-90)" font-size="11" fill="#525252" text-anchor="middle">광고비 순위 →</text>`;
   $("#scatter").innerHTML = s + "</svg>";
-  const labs = ["", ...REV_BREAKS.map(kfmt)];
-  $("#legend").innerHTML = `<div style="display:grid;gap:4px;width:100%"><span>색 = 예상 90일 매출 (짙을수록 높음)</span>
-    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">${REV_RAMP.map(c => `<span style="height:10px;background:${c}"></span>`).join("")}</div>
-    <div style="display:grid;grid-template-columns:repeat(7,1fr);font-size:11px">${REV_RAMP.map((c, i) => `<span>${i === 0 ? "낮음" : labs[i] + "+"}</span>`).join("")}</div></div>`;
+  $("#legend").innerHTML = `<div style="display:grid;gap:6px;width:100%;max-width:300px"><span>예상 90일 매출</span>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);height:6px">${REV_RAMP.map(c => `<span style="background:${c}"></span>`).join("")}</div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;font-family:var(--mono)"><span>낮음</span><span>${kfmt(REV_BREAKS[1])}</span><span>${kfmt(REV_BREAKS[3])}</span><span>높음</span></div></div>`;
   $("#scatter").querySelectorAll("circle").forEach(c => c.addEventListener("click", () => go("diag", c.dataset.id)));
 }
 function renderList(rows) {
   const head = `<thead><tr><th></th><th>게임</th><th>장르</th><th>광고/IAP</th><th>사분면</th><th>등급</th><th>처방 (현재 → 셀 중앙값)</th><th class="r">예상 추가 매출</th><th class="r">마케팅비</th><th class="r">예측 90일 매출</th><th class="r">예측 ROAS</th><th class="r">품질</th><th class="r">마케팅</th><th class="r">불균형</th><th class="r">점수</th></tr></thead>`;
   const body = rows.slice(0, shown).map(g => `<tr data-id="${g.game_id}">
     <td><input type="checkbox" aria-label="${g.game_id} 비교 선택" ${selected.has(g.game_id) ? "checked" : ""}></td>
-    <td class="num">${g.game_id}</td><td>${g.genre}</td><td>${g["채널"]}</td><td>${g["사분면"]}</td><td><span class="grade">${g["등급"]}</span></td>
+    <td class="num">${g.game_id}</td><td>${g.genre}</td><td>${g["채널"]}</td><td>${chip(g["사분면"])}</td><td><span class="grade">${g["등급"]}</span></td>
     <td>${improveText(g)}</td><td class="r">${g["예상추가매출"] ? "+" + usd(g["예상추가매출"]) : "–"}</td>
     <td class="r">${usd(g.marketing_spend_usd)}</td><td class="r">${usd(g.pred_usd)}</td><td class="r">${f1(g.roas)}</td><td class="r">${f1(g["품질_pct"])}</td><td class="r">${f1(g["마케팅_pct"])}</td>
     <td class="r">${g["불균형"] == null ? "–" : (g["불균형"] > 0 ? "+" : "") + f1(g["불균형"])}</td><td class="r">${g["우선순위점수"] == null ? "–" : (+g["우선순위점수"]).toFixed(3)}</td></tr>`).join("");
@@ -506,7 +508,7 @@ function renderStep2() {
   IN("mDial").classList.toggle("on", mode === "dial"); IN("mType").classList.toggle("on", mode === "type");
   const tog = (k, lab) => `<button type="button" data-tog="${k}" class="${S[k] ? "on" : ""}">${S[k] ? "✓ " : ""}${lab}</button>`;
   IN("catCtls").innerHTML = `<div class="ctl"><div class="lab"><span>수익화 구조 (광고 · 인앱결제)</span><b style="font-size:13px">${chanOf()}</b></div><div class="chips">${tog("ads", "광고")}${tog("iap", "인앱결제")}</div>
-      <span class="hint">${(S.mm === "Free" || S.mm === "Freemium") && !S.ads && !S.iap ? "⚠️ 무료 게임에 수익 수단이 없으면 매출 0으로 진단돼요" : "비교 그룹: " + cellOf() + " 게임들"}</span></div>` +
+      <span class="hint">${(S.mm === "Free" || S.mm === "Freemium") && !S.ads && !S.iap ? "무료 게임에 수익 수단이 없으면 매출 0으로 진단돼요" : "비교 그룹: " + cellOf() + " 게임들"}</span></div>` +
     CAT.map(c => mode === "dial"
       ? `<div class="ctl"><div class="lab"><span>${c.label}</span></div><div class="chips">${c.lv().map(v => `<button type="button" data-cat="${c.k}" data-v="${v}" class="${S[c.k] === v ? "on" : ""}">${v}</button>`).join("")}</div></div>`
       : `<label class="ctl"><div class="lab"><span>${c.label}</span></div><select data-catsel="${c.k}">${c.lv().map(v => `<option ${S[c.k] === v ? "selected" : ""}>${v}</option>`).join("")}</select></label>`).join("");
@@ -534,7 +536,7 @@ function loadExample(id) {
 }
 function readForm() { return { ...S }; }
 function fillLevels() {
-  const demo = ENG.demo.map(id => `<option value="${id}">${id} ${(BY[id] || {})["사분면"] || ""}</option>`).join("");
+  const demo = ENG.demo.map(id => `<option value="${id}">${id} · ${qtxt((BY[id] || {})["사분면"])}</option>`).join("");
   IN("exSel").innerHTML = `<option value="">시연 게임 바로 보기</option>${demo}`;
 }
 const GEN_PT = ["Casual", "Puzzle", "RPG", "Racing", "Simulation", "Sports", "Strategy"];
@@ -624,7 +626,7 @@ function renderDiag() {
   if (!f.genre || !f.mm) { IN("result").innerHTML = `<div class="panel"><p>① 게임 유형에서 장르와 수익화 방식을 먼저 골라 주세요.</p></div>`; return; }
   if (need.length) { IN("result").innerHTML = `<div class="panel"><p>세션 길이·하루 세션 수·업데이트 간격·위시리스트·앱 용량은 0보다 커야 해요. ② D7 지표 입력에서 확인해 주세요.</p></div>`; return; }
   const d = diagnose(f); lastDiag = d;
-  if (d.zero) { IN("result").innerHTML = `<div class="hero"><p class="verdict">⚠️ 무료 게임인데 광고도 인앱결제도 없어요 → 데이터 규칙상 <b>90일 매출 $0</b>이에요.</p><p>먼저 <b>광고 또는 인앱결제 도입</b>을 검토하세요. 수익 수단을 켜고 다시 진단해 보세요.</p></div>`; return; }
+  if (d.zero) { IN("result").innerHTML = `<div class="hero"><p class="verdict">무료 게임인데 광고도 인앱결제도 없어요 → 데이터 규칙상 <b>90일 매출 $0</b>이에요.</p><p>먼저 <b>광고 또는 인앱결제 도입</b>을 검토하세요. 수익 수단을 켜고 다시 진단해 보세요.</p></div>`; return; }
   d.mroas = d.f.mkt ? d.cur * (Math.pow(1.5, ENG.elasticity) - 1) / (d.f.mkt * 0.5) : null;
   initSim(d); paintResult();
 }
@@ -777,7 +779,7 @@ function renderCards() {
   $("#toDiag").onclick = () => go("diag");
   renderSaved();
 }
-function cardMd(c) { return `### ${c.quad} ${c.game} · ${c.처방 || c.레버 || ""}\n` + FIELDS.filter(f => f !== "처방").map(f => `- **${LABELS[f]}**: ${(c[f] || "–").replace(/\n/g, " / ")}`).join("\n"); }
+function cardMd(c) { return `### [${qtxt(c.quad)}] ${c.game} · ${c.처방 || c.레버 || ""}\n` + FIELDS.filter(f => f !== "처방").map(f => `- **${LABELS[f]}**: ${(c[f] || "–").replace(/\n/g, " / ")}`).join("\n"); }
 function copyText(txt, msg) {
   const done = () => toast(msg);
   if (navigator.clipboard) navigator.clipboard.writeText(txt).then(done, () => fallbackCopy(txt, msg)); else fallbackCopy(txt, msg);
@@ -792,7 +794,7 @@ function renderSaved() {
   $("#cardCount").textContent = store.length ? `(${store.length})` : "";
   const tools = store.length ? `<div class="actions"><button id="cpAll">전체 마크다운 복사 (노션·Jira용)</button><button id="csvAll">CSV 다운로드</button></div>` : "";
   $("#saved").innerHTML = tools + (store.length ? store.map(c => `<article>
-      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>${c.quad} <span class="num">${c.game}</span> · ${(c.처방 || c.레버 || "").replace(/</g, "&lt;")}</b><span class="muted" style="font-size:12px">${c.at} <button data-cp="${c.id}">복사</button> <button data-del="${c.id}" aria-label="삭제">삭제</button></span></div>
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>${chip(c.quad)} <span class="num">${c.game}</span> · ${(c.처방 || c.레버 || "").replace(/</g, "&lt;")}</b><span class="muted" style="font-size:12px">${c.at} <button data-cp="${c.id}">복사</button> <button data-del="${c.id}" aria-label="삭제">삭제</button></span></div>
       <dl>${FIELDS.filter(f => f !== "대상" && f !== "처방").map(f => `<dt>${LABELS[f]}</dt><dd style="white-space:pre-line">${(c[f] || "").replace(/</g, "&lt;")}</dd>`).join("")}</dl></article>`).join("")
     : `<p class="muted">아직 저장한 카드가 없어요. ① 게임 진단에서 처방을 고르고 「선택한 처방으로 실험카드 만들기」를 눌러 보세요.</p>`);
   $("#saved").querySelectorAll("[data-del]").forEach(b => b.onclick = () => { store = store.filter(c => String(c.id) !== b.dataset.del); saveStore(); renderSaved(); });
@@ -813,7 +815,7 @@ function show(view) {
 $("#foot").innerHTML = `용어: 게임 품질 = 광고비를 빼고 D7 지표만으로 예상한 매출을 비슷한 게임(장르 × 과금 방식)끼리 줄 세운 순위 · 광고비 규모 = 같은 그룹 안 광고비 순위 · 광고비 1달러당 매출 = 예상 90일 매출 ÷ 초기 광고비 ·
   광고비를 더 쓰면 1달러당 = 광고비 +50% 시 늘어나는 예상 매출 ÷ 늘어난 광고비 · 진단 로직 = 팀 파이프라인(priority_pipeline.py) · 예상 매출 = 팀 최종 앙상블(CV RMSLE 0.6741), 직접 입력 시 팀 내부 회귀 모델 ·
   처방 효과 = 팀 품질 모델 계수 · 광고비 탄력성 0.555 · 처방 비용 = 팀 가정값(화면에서 수정) · 유형 = 품질·광고비 순위 50 기준 · 등급(대회 요구) = 두 순위 차이 55 이상 고, 30 이상 중 ·
-  train 사후 검증: 🟢 실제 광고비 1달러당 매출 33.8달러 vs 🔴 3.3달러, 우선순위 점수와 실제 효율 상관 0.79 · 합성 데이터(교육용) · 모든 예상치는 상관 기반이며 인과 효과가 아님 · 실험카드는 이 브라우저에 저장`;
+  train 사후 검증: 기회 유형 실제 광고비 1달러당 매출 33.8달러 vs 위험 유형 3.3달러, 우선순위 점수와 실제 효율 상관 0.79 · 합성 데이터(교육용) · 모든 예상치는 상관 기반이며 인과 효과가 아님 · 실험카드는 이 브라우저에 저장`;
 window.addEventListener("hashchange", () => show(location.hash.slice(1)));
 initDiag();
 show(location.hash.slice(1) || "diag");
