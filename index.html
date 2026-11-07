@@ -67,8 +67,17 @@ nav.tabs a.on { color: var(--ink); font-weight: 600; border-bottom-color: var(--
 .hero-copy { display: grid; align-content: space-between; gap: 28px; min-width: 0; }
 .hero-copy .lead { font-size: 18px; color: var(--muted); max-width: 46ch; margin-top: 18px; font-weight: 300; }
 .hero-art { position: relative; min-height: 300px; background-image: radial-gradient(var(--line-strong) 1.2px, transparent 1.4px); background-size: 28px 28px; background-position: 6px 6px; }
-.hero-chart { position: absolute; left: 6%; right: 10%; top: 8%; background: var(--bg); border: 1px solid var(--line); padding: 16px 18px 12px; }
-.hero-chart small { color: var(--muted); font-size: 11px; }
+.hero-chart { position: absolute; left: 8%; right: 8%; top: 50%; transform: translateY(-50%); background: var(--bg); border: 1px solid var(--line); padding: 22px 24px; display: grid; gap: 16px; }
+.ex-k { font-size: 12px; color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ex-row { display: grid; gap: 6px; }
+.ex-row .l { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); }
+.ex-row .l b { font-family: var(--mono); font-weight: 400; color: var(--ink); font-size: 16px; }
+.ex-row .l b.up { color: var(--accent); font-size: 20px; }
+.ex-bar { height: 12px; background: var(--layer2); }
+.ex-bar i { display: block; height: 100%; background: var(--line-strong); }
+.ex-bar.up i { background: var(--accent); }
+.ex-foot { border-top: 1px solid var(--line); padding-top: 12px; font-size: 13px; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.ex-foot .pos { font-family: var(--mono); }
 .hero-tile { position: absolute; right: 2%; bottom: 4%; width: 92px; height: 92px; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; font-size: 34px; }
 .btns { display: flex; flex-wrap: wrap; gap: 16px; }
 .btn { display: inline-flex; align-items: center; justify-content: space-between; gap: 32px; min-height: 48px; padding: 0 16px; border: 1px solid var(--accent); background: var(--accent); color: var(--on-accent); cursor: pointer; text-decoration: none; font-size: 15px; min-width: 220px; border-radius: 0; }
@@ -231,7 +240,7 @@ tbody tr { cursor: pointer; } tbody tr:hover { background: var(--layer); }
   </div>
   <div class="hero-art" aria-hidden="true">
     <div class="hero-chart"><div id="heroChart"></div></div>
-    <div class="hero-tile">↗</div>
+    
   </div>
 </div></section>
 
@@ -685,18 +694,20 @@ function paintResult() {
   IN("tweak").onclick = () => setStep(2);
 }
 function renderHeroChart() {
-  const ids = ENG.demo || [], rows = ids.map(id => BY[id]).filter(Boolean);
-  if (!rows.length) return;
-  const idx = g => 100 * (1 + Math.max(g["예상추가매출"] || 0, 0) / g.pred_usd);
-  const W = 420, H = 210, P = 30, max = Math.max(200, ...rows.map(idx)) * 1.05;
-  const bw = (W - P - 10) / rows.length, y = v => H - 24 - v / max * (H - 44);
-  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="시연 게임 4개: 지금 예상 매출을 100으로 둘 때 추천 처방 후 예상 매출">`;
-  for (const f of [0, 100, 200]) s += `<line x1="${P}" x2="${W - 6}" y1="${y(f)}" y2="${y(f)}" stroke="var(--line)"/><text x="${P - 6}" y="${y(f) + 4}" font-size="9" fill="var(--faint)" text-anchor="end">${f}</text>`;
-  rows.forEach((g, i) => { const x = P + 8 + i * bw, w = bw / 2 - 8, b = idx(g);
-    s += `<rect x="${x}" y="${y(100)}" width="${w}" height="${H - 24 - y(100)}" fill="var(--line-strong)"/><rect x="${x + w + 4}" y="${y(b)}" width="${w}" height="${H - 24 - y(b)}" fill="var(--accent)"/>
-      <text x="${x + w + 4 + w / 2}" y="${y(b) - 4}" font-size="9" fill="var(--accent)" text-anchor="middle">${Math.round(b)}</text>
-      <text x="${x + w + 2}" y="${H - 8}" font-size="10" fill="var(--muted)" text-anchor="middle">${g["사분면"]}</text>`; });
-  IN("heroChart").innerHTML = s + `</svg><small><span style="display:inline-block;width:9px;height:9px;background:var(--line-strong)"></span> 지금 예상 90일 매출 = 100 &nbsp; <span style="display:inline-block;width:9px;height:9px;background:var(--accent)"></span> 추천 처방 후 (시연 게임 4개, 모델·상관 기반)</small>`;
+  const id = (ENG.demo || [])[0], e = EX[id], g = BY[id];
+  if (!e || !g) { IN("heroDiag").querySelector(".hero-art").hidden = true; return; }
+  const f = { genre: e.genre, mm: e.monetization_model, pub: e.publisher_tier, reg: e.region_focus, mp: e.multiplayer_support, ads: e.contains_ads === "Yes", iap: e.has_in_app_purchases === "Yes",
+    mkt: e.marketing_spend_usd, crash: e.crash_rate_pct, sess: e.avg_session_minutes, daily: e.avg_daily_sessions, upd: e.update_frequency_days, wish: e.wishlist_prelaunch, apk: e.apk_size_mb };
+  const keep = [loadedId, dirty]; loadedId = id; dirty = false;
+  const d = diagnose(f); [loadedId, dirty] = keep;
+  const s = d.sols.filter(x => x.k !== "예산" && x.ok).sort((a, b) => (b.mult - 1) * FEAS[b.k] - (a.mult - 1) * FEAS[a.k])[0];
+  if (!s) { IN("heroDiag").querySelector(".hero-art").hidden = true; return; }
+  const after = d.cur * s.mult, w = v => Math.round(v / after * 100);
+  IN("heroChart").innerHTML = `
+    <div class="ex-k">진단 예시 · ${d.ref} ${chip(d.quad)}</div>
+    <div class="ex-row"><div class="l"><span>지금 예상 90일 매출</span><b>${usd(d.cur)}</b></div><div class="ex-bar"><i style="width:${w(d.cur)}%"></i></div></div>
+    <div class="ex-row"><div class="l"><span>${s.icon} ${s.k} 처방 후</span><b class="up">${usd(after)}</b></div><div class="ex-bar up"><i style="width:100%"></i></div></div>
+    <div class="ex-foot"><span>${s.k} ${s.from}${s.unit === "%" ? "%" : ""} → ${s.to}${s.unit === "%" ? "%" : " " + s.unit} · ${PB[s.k].who.split(" (")[0]} · ${PB[s.k].weeks}</span><b class="pos">+${Math.round((s.mult - 1) * 100)}%</b></div>`;
 }
 function initDiag() {
   fillLevels(); renderStep1(); renderHeroChart();
