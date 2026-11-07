@@ -1,4 +1,4 @@
-<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'></head><body><title>D7 처방 보드</title>
+<!doctype html><html lang='ko' style='color-scheme:light'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'></head><body><title>D7 처방 보드</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,21 +14,8 @@
   --font: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
   --gutter: max(16px, env(safe-area-inset-left, 0px));
+  color-scheme: light;
 }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #161616; --layer: #262626; --layer2: #393939; --line: #393939; --line-strong: #6f6f6f;
-  --ink: #f4f4f4; --muted: #c6c6c6; --faint: #a8a8a8;
-  --accent: #4589ff; --accent-hover: #78a9ff; --accent-soft: #0b1d3a; --on-accent: #ffffff;
-  --q-green: #42be65; --q-blue: #78a9ff; --q-yellow: #f1c21b; --q-red: #ff8389; --q-gray: #a8a8a8;
-  --q-green-soft: #071908; --q-blue-soft: #001d6c; --q-yellow-soft: #302400; --q-red-soft: #2d0709; --q-gray-soft: #262626;
-  color-scheme: dark; } }
-:root[data-theme="dark"] {
-  --bg: #161616; --layer: #262626; --layer2: #393939; --line: #393939; --line-strong: #6f6f6f;
-  --ink: #f4f4f4; --muted: #c6c6c6; --faint: #a8a8a8;
-  --accent: #4589ff; --accent-hover: #78a9ff; --accent-soft: #0b1d3a; --on-accent: #ffffff;
-  --q-green: #42be65; --q-blue: #78a9ff; --q-yellow: #f1c21b; --q-red: #ff8389; --q-gray: #a8a8a8;
-  --q-green-soft: #071908; --q-blue-soft: #001d6c; --q-yellow-soft: #302400; --q-red-soft: #2d0709; --q-gray-soft: #262626;
-  color-scheme: dark; }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; }
