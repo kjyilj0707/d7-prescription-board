@@ -582,24 +582,28 @@ function solText(g) {
 
 // 진단에서 입력한 게임들 (최근 순, 최대 5개)
 let MINE = [], mineIdx = 0;
+// 입력한 게임 이름 = "내 게임 N" (지금까지 쓴 가장 큰 번호 + 1, 저장 기록과 이어짐)
+const noOf = s => { const m = /^내 게임 (\d+)$/.exec(s || ""); return m ? +m[1] : 0; };
+function nextNo() { return 1 + Math.max(0, ...MINE.map(m => noOf(m.name)), ...(typeof DIAGS !== "undefined" ? DIAGS.map(r => noOf(r.name)) : [])); }
 function pushMine(d) {
   if (!d || d.zero) return;
   const key = JSON.stringify(d.f);
   const old = MINE.findIndex(m => m.key === key);
-  const name = old >= 0 ? MINE[old].name : loadedId && !dirty ? loadedId : `내 게임 ${MINE.filter(m => m.name.startsWith("내 게임")).length + 1}`;
+  const saved = DIAGS.find(r => r.key === JSON.stringify(S));
+  const name = old >= 0 ? MINE[old].name : saved ? saved.name : `내 게임 ${nextNo()}`;
   if (old >= 0) MINE.splice(old, 1);
-  MINE.unshift({ key, name, d, S: structuredClone(S), loadedId, dirty }); MINE = MINE.slice(0, 5); mineIdx = 0;
+  MINE.unshift({ key, name, d, S: structuredClone(S), loadedId, dirty }); MINE = MINE.slice(0, 10); mineIdx = 0;
 }
 function openSolution(m) {
   S = structuredClone(m.S); loadedId = m.loadedId; dirty = m.dirty; renderStep1();
   location.hash = "diag"; show("diag"); setStep(3);
 }
-function mineRow() {
-  const m = MINE[mineIdx]; if (!m || !m.d || m.d.zero) return null;
+function mineRow(m = MINE[mineIdx]) {
+  if (!m || !m.d || m.d.zero) return null;
   const d = m.d, f = d.f, e = ENG.elasticity, sol = d.rec ? d.rec.k : "유지";
   const add = d.prio != null ? d.prio : sol === "예산" ? d.cur * (Math.pow(1.5, e) - 1) : d.rec ? d.cur * (d.rec.mult - 1) : 0;
   const allRank = sol === "유지" ? null : G.filter(g => g["우선순위"] != null && g.game_id !== mineSkip() && (g["예상추가매출"] || 0) > add).length + 1;
-  return { mine: true, game_id: m.name, genre: f.genre, monetization_model: f.mm, "채널": d.ch, "비교셀": d.ref, "사분면": d.quad, "등급": d.grade, "솔루션": sol,
+  return { mine: true, mi: MINE.indexOf(m), src: m.loadedId && !m.dirty ? m.loadedId : null, game_id: m.name, genre: f.genre, monetization_model: f.mm, "채널": d.ch, "비교셀": d.ref, "사분면": d.quad, "등급": d.grade, "솔루션": sol,
     "예상추가매출": add, marketing_spend_usd: f.mkt > 0 ? f.mkt : null, pred_usd: d.cur, roas: f.mkt > 0 ? d.cur / f.mkt : null, "한계roas": d.mroas,
     "품질_pct": d.qp, "마케팅_pct": d.mp, "불균형": d.gap, "우선순위점수": d.score, "전체순위": allRank,
     crash_rate_pct: d.crash, med_crash_rate_pct: d.C.crash, playtime: d.play, med_playtime: d.C.play, update_frequency_days: f.upd, med_update_frequency_days: d.C.upd };
@@ -610,10 +614,11 @@ function nearOf(m, n) {
     .map(g => [Math.hypot(g["품질_pct"] - d.qp, g["마케팅_pct"] - d.mp), g]).sort((a, b) => a[0] - b[0]).slice(0, n).map(x => x[1]);
 }
 const mineSkip = () => { const m = MINE[mineIdx]; return m && m.loadedId && !m.dirty ? m.loadedId : null; };
+const mineSkips = () => new Set(MINE.filter(m => m.loadedId && !m.dirty).map(m => m.loadedId));
 function focusMine() {
   const m = MINE[mineIdx]; if (!m) return;
   $("#fGenre").value = m.d.ref.endsWith("(전체)") ? "" : m.d.f.genre; $("#fChan").value = m.d.f.mm; $("#fQuad").value = ""; $("#fGrade").value = ""; $("#fId").value = "";
-  selected = new Set(nearOf(m, 3).map(g => g.game_id));      // 가장 가까운 기존 게임 3개를 비교표에 미리 담기
+  selected = MINE.length >= 3 ? new Set() : new Set(nearOf(m, 3 - MINE.length + 1).map(g => g.game_id));   // 입력한 게임이 3개 미만이면 가까운 기존 게임으로 채워 3개 이상 비교
 }
 function renderMine() {
   const box = $("#mine");
@@ -736,15 +741,15 @@ function reasonOf(g) {
 }
 function renderCompare() {
   const sv = $("#fSort").value;
-  const me = mineRow(), skip = mineSkip();
-  const sel = [...selected].filter(id => id !== skip).map(id => BY[id]).filter(Boolean).concat(me ? [me] : []).sort(sortFn());
+  const mines = MINE.map(m => mineRow(m)).filter(Boolean), me = mines[0] || null, skips = mineSkips();
+  const sel = [...selected].filter(id => !skips.has(id)).map(id => BY[id]).filter(Boolean).concat(mines).sort(sortFn());
   if (!sel.length || (me && sel.length === 1)) { $("#compare").innerHTML = `<p class="muted">${me ? "목록에서 「+ 비교」를 누르면 내 게임과 나란히 비교해요." : "목록에서 「+ 비교」로 게임을 3개 이상 담으면 여기서 나란히 비교해요."}</p>`; return; }
-  $("#compare").innerHTML = `<h3>선택한 게임 비교 (${sel.length}개${sel.length < 3 ? " · 3개 이상 권장" : ""})</h3>
+  $("#compare").innerHTML = `<h3>선택한 게임 비교 (${sel.length}개 · 내 게임 ${mines.length}개${sel.length < 3 ? " · 3개 이상 권장" : ""})</h3>
     <div class="tbl"><table><thead><tr><th>순위</th><th>게임</th><th>수익화 구조</th><th>사분면</th><th class="r">마케팅비</th><th class="r">품질</th><th class="r">마케팅</th><th class="r">한계 ROAS</th><th>처방</th><th class="r">예상 추가 매출</th><th class="r">실행 가능성</th></tr></thead><tbody>
-    ${sel.map((g, i) => `<tr data-id="${g.mine ? "__mine" : g.game_id}" class="${g.mine ? "me-row" : ""}"><td class="num">${i + 1}</td><td class="num">${g.game_id}${g.mine ? ' <span class="tag">내 게임</span>' : ""}</td><td>${g.genre} · ${g["채널"]}</td><td>${chip(g["사분면"])}</td><td class="r">${usd(g.marketing_spend_usd)}</td><td class="r">${f1(g["품질_pct"])}</td><td class="r">${f1(g["마케팅_pct"])}</td><td class="r">${f1(g["한계roas"])}</td><td class="rx">${improveText(g)}</td><td class="r">${g["예상추가매출"] ? "+" + usd(g["예상추가매출"]) : "–"}</td><td class="r">${(FEASW[g["솔루션"]] ?? 0).toFixed(1)}</td></tr>`).join("")}
+    ${sel.map((g, i) => `<tr data-id="${g.mine ? "__mine" + g.mi : g.game_id}" class="${g.mine ? "me-row" : ""}"><td class="num">${i + 1}</td><td class="num">${g.game_id}${g.src ? ` <span class="muted" style="font-size:11px">${g.src}</span>` : ""}</td><td>${g.genre} · ${g["채널"]}</td><td>${chip(g["사분면"])}</td><td class="r">${usd(g.marketing_spend_usd)}</td><td class="r">${f1(g["품질_pct"])}</td><td class="r">${f1(g["마케팅_pct"])}</td><td class="r">${f1(g["한계roas"])}</td><td class="rx">${improveText(g)}</td><td class="r">${g["예상추가매출"] ? "+" + usd(g["예상추가매출"]) : "–"}</td><td class="r">${(FEASW[g["솔루션"]] ?? 0).toFixed(1)}</td></tr>`).join("")}
     </tbody></table></div><p class="muted" style="font-size:12px">순위 기준: ${{ team: "처방 시 예상 추가 매출(팀 모델)", gap: "심각성(품질·마케팅비 불균형)", impact: "영향도(예상 추가 매출) × 실행 가능성" }[sv]}</p><ol class="reason">${sel.map(g => `<li>${reasonOf(g)}</li>`).join("")}</ol>
     <div><button id="clearSel">선택 해제</button></div>`;
-  $("#compare").querySelectorAll("tbody tr").forEach(tr => tr.addEventListener("click", () => tr.dataset.id === "__mine" ? openSolution(MINE[mineIdx]) : go("diag", tr.dataset.id)));
+  $("#compare").querySelectorAll("tbody tr").forEach(tr => tr.addEventListener("click", () => tr.dataset.id.startsWith("__mine") ? openSolution(MINE[+tr.dataset.id.slice(6)]) : go("diag", tr.dataset.id)));
   $("#clearSel").addEventListener("click", () => { selected.clear(); renderBoard(false); });
 }
 function renderBoard(resetShown = true) {
@@ -1165,6 +1170,13 @@ function cardFromSim(d, only) {
 }
 // 진단 기록 (이 브라우저에 저장)
 let DIAGS = []; try { DIAGS = JSON.parse(localStorage.getItem("d7diags") || "[]"); } catch (e) { DIAGS = []; }
+function renumberDiags() {
+  let changed = false, n = Math.max(0, ...DIAGS.map(r => noOf(r.name)));
+  DIAGS.slice().sort((a, b) => a.id - b.id).forEach(r => { if (noOf(r.name)) return;
+    const old = r.name; r.name = `내 게임 ${++n}`; changed = true;
+    store.forEach(c => { if (c.diagId === r.id) { c.game = r.name; if (c.대상) c.대상 = c.대상.replace(old, r.name); } }); });
+  return changed;
+}
 function saveDiags() { try { localStorage.setItem("d7diags", JSON.stringify(DIAGS)); } catch (e) {} scheduleSync(); }
 let pendingSim = null;
 const SOL_DESC = (d, k) => k === "예산" ? `광고비 ${SIM.예산.pct > 0 ? "+" : ""}${SIM.예산.pct}%`
@@ -1172,7 +1184,7 @@ const SOL_DESC = (d, k) => k === "예산" ? `광고비 ${SIM.예산.pct > 0 ? "+
 function saveDiagnosis() {
   const d = lastDiag; if (!d || d.zero) return;
   const R = simCalc(d), key = JSON.stringify(S), prev = DIAGS.find(x => x.key === key);
-  const name = loadedId && !dirty ? loadedId : prev ? prev.name : `내 게임 ${DIAGS.filter(x => x.name.startsWith("내 게임")).length + 1}`;
+  const name = prev ? prev.name : (MINE.find(m => m.key === key) || {}).name || `내 게임 ${nextNo()}`;
   const id = prev ? prev.id : Math.max(Date.now(), ...DIAGS.map(r => r.id + 1));
   if (prev) { store = store.filter(c => c.diagId !== id); DIAGS = DIAGS.filter(x => x !== prev); }
   const ks = R.on.length ? R.on : [null];
@@ -1317,6 +1329,8 @@ async function login(name, mergeLocal) {
     DIAGS = mergeLocal ? mergeById(DIAGS, rem.diags || []) : (rem.diags || []);
     store = mergeLocal ? mergeById(store, rem.cards || []) : (rem.cards || []);
     try { localStorage.setItem("d7diags", JSON.stringify(DIAGS)); localStorage.setItem("d7cards", JSON.stringify(store)); } catch (e) {}
+    renumberDiags();
+    try { localStorage.setItem("d7diags", JSON.stringify(DIAGS)); localStorage.setItem("d7cards", JSON.stringify(store)); } catch (e) {}
     renderSaved(); if (location.hash.slice(1) === "cards") renderCards();
     await pushRemote();
     toast(`${name}님 기록 ${DIAGS.length}개를 불러왔어요`);
@@ -1332,6 +1346,7 @@ IN("loginForm").addEventListener("submit", e => { const n = IN("loginName").valu
   const hadLocal = DIAGS.length + store.length > 0; login(n, hadLocal); });
 
 initDiag();
+if (renumberDiags()) { try { localStorage.setItem("d7diags", JSON.stringify(DIAGS)); localStorage.setItem("d7cards", JSON.stringify(store)); } catch (e) {} }
 renderSaved();
 paintLogin();
 if (USER) login(USER, true);
