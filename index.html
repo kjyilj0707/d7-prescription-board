@@ -47,13 +47,24 @@ nav.tabs a:hover { color: var(--ink); background: var(--layer); }
 nav.tabs a.on { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
 
 /* 히어로 */
-.hero-band { background: var(--accent-soft); border-bottom: 1px solid var(--line); }
-.hero-in { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 32px; padding-block: 36px 40px; align-items: stretch; }
+.hero-band { background: linear-gradient(180deg, #d6e4fb 0%, #eef4fe 45%, #ffffff 100%); }
+.hero-in { display: grid; gap: 28px; padding-block: 40px 48px; }
 .crumb { font-size: 14px; color: var(--muted); margin-bottom: 22px; }
 .crumb a { text-decoration: none; }
-.hero-copy { display: grid; align-content: space-between; gap: 28px; min-width: 0; }
-.hero-copy .lead { font-size: 18px; color: var(--muted); max-width: 46ch; margin-top: 18px; font-weight: 300; }
-.hero-art { position: relative; min-height: 300px; background-image: radial-gradient(var(--line-strong) 1.2px, transparent 1.4px); background-size: 28px 28px; background-position: 6px 6px; }
+.hero-in h1 { font-weight: 300; font-size: clamp(34px, 4.6vw, 60px); letter-spacing: -.01em; color: #262626; }
+.hero-sub { font-size: clamp(19px, 2.2vw, 30px); line-height: 1.45; font-weight: 400; max-width: 34em; color: var(--ink); margin-top: 22px; }
+.hsearch { display: flex; align-items: center; gap: 14px; background: var(--layer); border-bottom: 1px solid var(--line-strong); padding: 0 20px; min-height: 56px; }
+.hsearch svg { flex: none; color: var(--muted); }
+.hsearch input { flex: 1; min-width: 0; border: 0; background: transparent; font-size: 17px; padding: 14px 0; outline: none; }
+.hsearch input::placeholder { color: var(--faint); }
+.hsearch:focus-within { outline: 2px solid var(--accent); outline-offset: -2px; }
+.htiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+.htile { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-rows: auto 1fr auto; gap: 10px; min-height: 176px; padding: 22px 24px; background: var(--bg); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.htile:hover { background: var(--layer); }
+.htile:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.htile b { font-size: 18px; font-weight: 600; }
+.htile span { color: var(--muted); font-size: 15px; line-height: 1.55; }
+.htile svg { color: var(--accent); }
 .hero-chart { position: absolute; left: 8%; right: 8%; top: 50%; transform: translateY(-50%); background: var(--bg); border: 1px solid var(--line); padding: 22px 24px; display: grid; gap: 16px; }
 .ex-k { font-size: 12px; color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .ex-row { display: grid; gap: 6px; }
@@ -208,7 +219,7 @@ tbody tr { cursor: pointer; } tbody tr:hover { background: var(--layer); }
 .note { font-size: 12px; color: var(--faint); border-top: 1px solid var(--line); padding-top: 16px; line-height: 1.7; }
 .toast { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 12px 18px; z-index: 30; }
 
-@media (max-width: 1000px) { .hero-in { grid-template-columns: 1fr; } .hero-art { min-height: 260px; } .layout { grid-template-columns: 1fr; gap: 20px; } .rail { position: static; } .steps { grid-auto-flow: column; border-left: 0; border-bottom: 2px solid var(--line); } .steps li { margin: 0 0 -2px; border-left: 0; border-bottom: 3px solid transparent; } .steps li.on { border-bottom-color: var(--accent); } .board { grid-template-columns: 1fr; } }
+@media (max-width: 1000px) { .htiles { grid-template-columns: 1fr; } .layout { grid-template-columns: 1fr; gap: 20px; } .rail { position: static; } .steps { grid-auto-flow: column; border-left: 0; border-bottom: 2px solid var(--line); } .steps li { margin: 0 0 -2px; border-left: 0; border-bottom: 3px solid transparent; } .steps li.on { border-bottom-color: var(--accent); } .board { grid-template-columns: 1fr; } }
 @media (max-width: 760px) { .tiles, .kpis { grid-template-columns: 1fr 1fr; } .tile:nth-child(2n), .kpi:nth-child(2n) { border-right: 0; } .tile, .kpi { border-bottom: 1px solid var(--line); } .simrow { grid-template-columns: 22px minmax(0, 1fr); } .simrow .right { grid-column: 2; text-align: left; } .cost { justify-content: flex-start; } .ctls { grid-template-columns: 1fr; } .lever { grid-template-columns: 1fr; } .mh-meta { display: none; } }
 @media (max-width: 560px) { .form { grid-template-columns: 1fr; } .form label { padding-top: 0; } .btn { min-width: 0; width: 100%; } .steps li small { display: none; } .steps li { padding: 10px 8px; font-size: 13px; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
@@ -226,35 +237,19 @@ tbody tr { cursor: pointer; } tbody tr:hover { background: var(--layer); }
 </nav></div></div>
 
 <section class="hero-band" id="heroDiag"><div class="hero-in">
-  <div class="hero-copy">
-    <div><p class="crumb"><a href="#diag">홈</a> / 게임 진단</p>
-      <h1>출시 7일 데이터로 찾는<br>90일 매출 처방</h1>
-      <p class="lead">장르·수익화 방식과 D7 지표를 넣으면, 비슷한 게임과 비교해 무엇을 고치거나 광고비를 어떻게 조정하면 90일 매출이 얼마나 될지 보여 드려요.</p></div>
-    <div class="btns"><button class="btn" id="heroStart" type="button">진단 시작하기 <span class="ar">→</span></button>
-      <button class="btn ghost" id="heroDemo" type="button">시연 게임 결과 보기 <span class="ar">↓</span></button></div>
-  </div>
-  <div class="hero-art" aria-hidden="true">
-    
-  </div>
+  <div><p class="crumb"><a href="#diag">홈</a> / 게임 진단</p><h1>어떤 게임을 진단할까요?</h1><p class="hero-sub">출시 7일 지표를 넣으면 비슷한 게임과 비교해, 무엇을 고치고 광고비를 어떻게 조정하면 90일 매출이 얼마나 될지 보여 드려요.</p></div>
+  <label class="hsearch"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg><input type="search" data-gsearch placeholder="게임 ID로 바로 진단하기 (예: REV4_003355 또는 3355)" aria-label="게임 ID로 찾기"></label>
+  <div class="htiles"><button class="htile" type="button" id="heroStart"><b>진단 시작하기</b><span>장르와 수익화 방식부터 고르고, D7 지표를 입력하세요.</span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button><button class="htile" type="button" id="heroDemo"><b>시연 게임 결과 보기</b><span>위험 유형 시연 게임의 진단 결과와 처방을 바로 확인하세요.</span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button><button class="htile" type="button" data-goto="board"><b>전체 게임 비교</b><span>신작 게임 전체를 품질과 광고비로 놓고 우선순위를 보세요.</span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><circle cx="8" cy="15" r="1.3"/><circle cx="12" cy="10" r="1.3"/><circle cx="17" cy="7" r="1.3"/><circle cx="16" cy="14" r="1.3"/></svg></button></div>
 </div></section>
-
 <section class="hero-band" id="heroBoard" hidden><div class="hero-in">
-  <div class="hero-copy">
-    <div><p class="crumb"><a href="#diag">홈</a> / 전체 게임 비교</p>
-      <h1>이번 주 신작 게임,<br>어디부터 손볼까요</h1>
-      <p class="lead">D7 신작 게임을 품질과 광고비로 한눈에 보고, 먼저 손볼 게임을 고르세요. 점이나 행을 누르면 그 게임을 진단해요.</p></div>
-    <div class="btns"><button class="btn" type="button" data-scroll="#list">우선순위 목록 보기 <span class="ar">↓</span></button><a class="btn ghost" href="#diag">새 게임 진단하기 <span class="ar">→</span></a></div>
-  </div>
-  <div class="hero-art" aria-hidden="true"></div>
+  <div><p class="crumb"><a href="#diag">홈</a> / 전체 게임 비교</p><h1>어디부터 손볼까요?</h1><p class="hero-sub">이번 주 D7 신작 게임을 품질과 광고비로 한눈에 보고, 먼저 손볼 게임을 고르세요.</p></div>
+  <label class="hsearch"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg><input type="search" data-gsearch placeholder="게임 ID로 바로 진단하기 (예: REV4_003355 또는 3355)" aria-label="게임 ID로 찾기"></label>
+  <div class="htiles"><button class="htile" type="button" data-scroll="#list"><b>우선순위 목록</b><span>팀 우선순위 점수 순으로 게임과 처방, 예상 추가 매출을 확인하세요.</span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg></button><button class="htile" type="button" data-scroll="#scatter"><b>품질과 광고비 그래프</b><span>색이 짙을수록 예상 매출이 높은 게임이에요. 점을 누르면 진단해요.</span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><circle cx="8" cy="15" r="1.3"/><circle cx="12" cy="10" r="1.3"/><circle cx="17" cy="7" r="1.3"/><circle cx="16" cy="14" r="1.3"/></svg></button><button class="htile" type="button" data-goto="diag"><b>새 게임 진단</b><span>목록에 없는 게임은 D7 지표를 직접 넣어 진단하세요.</span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button></div>
 </div></section>
 <section class="hero-band" id="heroCards" hidden><div class="hero-in">
-  <div class="hero-copy">
-    <div><p class="crumb"><a href="#diag">홈</a> / 실험카드</p>
-      <h1>고른 처방을<br>실행 계획으로</h1>
-      <p class="lead">처방을 담당 · 할 일 · 확인 지표 · 기간이 있는 실험카드로 정리해요. 노션이나 Jira에 붙여 넣을 수 있게 복사하거나 CSV로 받을 수 있어요.</p></div>
-    <div class="btns"><button class="btn" type="button" data-scroll="#cardForm">실험카드 작성하기 <span class="ar">↓</span></button><button class="btn ghost" type="button" data-scroll="#saved">저장한 카드 보기 <span class="ar">↓</span></button></div>
-  </div>
-  <div class="hero-art" aria-hidden="true"></div>
+  <div><p class="crumb"><a href="#diag">홈</a> / 실험카드</p><h1>처방을 실행 계획으로</h1><p class="hero-sub">고른 처방을 담당 · 할 일 · 확인 지표 · 기간이 있는 실험카드로 정리하고, 노션이나 Jira에 붙여 넣으세요.</p></div>
+  <label class="hsearch"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg><input type="search" data-gsearch placeholder="게임 ID로 바로 진단하기 (예: REV4_003355 또는 3355)" aria-label="게임 ID로 찾기"></label>
+  <div class="htiles"><button class="htile" type="button" data-scroll="#cardForm"><b>실험카드 작성</b><span>진단 화면에서 체크한 처방으로 채운 카드를 다듬어 저장하세요.</span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h7l2 2h9v11H3z"/><path d="M12 11v5M9.5 13.5h5"/></svg></button><button class="htile" type="button" data-scroll="#saved"><b>저장한 실험카드</b><span>저장한 카드를 마크다운으로 복사하거나 CSV로 내려받으세요.</span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></svg></button><button class="htile" type="button" data-goto="board"><b>전체 게임 비교</b><span>실험할 게임을 우선순위 목록에서 더 골라 보세요.</span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg></button></div>
 </div></section>
 <div class="wrap">
 
@@ -818,6 +813,10 @@ function renderSaved() {
 }
 
 document.querySelectorAll("[data-scroll]").forEach(b => b.addEventListener("click", () => { const el = $(b.dataset.scroll); if (el) el.closest(".panel, .board")?.scrollIntoView({ behavior: "smooth", block: "start" }); }));
+document.querySelectorAll("[data-goto]").forEach(b => b.addEventListener("click", () => { location.hash = b.dataset.goto; show(b.dataset.goto); }));
+document.querySelectorAll("[data-gsearch]").forEach(inp => inp.addEventListener("keydown", e => { if (e.key !== "Enter") return;
+  let id = inp.value.trim().toUpperCase(); if (/^\d+$/.test(id)) id = "REV4_" + id.padStart(6, "0");
+  if (EX[id]) { inp.value = ""; go("diag", id); } else toast("그 ID의 게임을 찾지 못했어요"); }));
 function go(view, id) { if (id && view === "diag" && EX[id]) { loadExample(id); renderStep1(); setStep(3); } location.hash = view; show(view); }
 function show(view) {
   view = ["diag", "board", "cards"].includes(view) ? view : "diag";
