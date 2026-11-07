@@ -195,6 +195,13 @@ details.pb ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px; }
 .grade { font-weight: 600; font-size: 12px; padding: 2px 8px; border: 1px solid var(--line-strong); }
 
 /* 내 게임 위치 */
+.strips { display: grid; gap: 14px; }
+.strip { display: grid; grid-template-columns: 150px minmax(0, 1fr); column-gap: 20px; align-items: center; }
+.strip svg { width: 100%; height: auto; display: block; overflow: visible; }
+.strip-l { display: grid; gap: 2px; grid-row: span 2; }
+.strip-l span { font-size: 13px; color: var(--muted); } .strip-l b { font-size: 16px; font-weight: 500; }
+.strip-ax { display: flex; justify-content: space-between; font-size: 11px; color: var(--faint); font-family: var(--mono); padding: 0 8px; }
+@media (max-width: 760px) { .strip { grid-template-columns: 1fr; } .strip-l { grid-row: auto; display: flex; gap: 10px; align-items: baseline; } }
 .mine { border-left: 3px solid var(--accent); }
 .mine-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--line); }
 .mine-grid > div { padding: 14px 18px; display: grid; gap: 4px; border-right: 1px solid var(--line); }
@@ -575,17 +582,32 @@ function renderMine() {
   const m = MINE[mineIdx], d = m.d, peers = G.filter(g => g["비교셀"] === d.ref && g["마케팅_pct"] != null);
   const revRank = 100 * peers.filter(g => g.pred_usd > d.cur).length / Math.max(peers.length, 1);
   const near = d.mp == null ? [] : peers.filter(g => g.game_id !== m.loadedId).map(g => [Math.hypot(g["품질_pct"] - d.qp, g["마케팅_pct"] - d.mp), g]).sort((a, b) => a[0] - b[0]).slice(0, 4).map(x => x[1]);
+  // 세 줄 위치 막대: 품질 · 광고비 · 예상 매출 (오른쪽일수록 높음)
+  const lg = v => Math.log10(Math.max(v, 1)), revs = peers.map(g => lg(g.pred_usd)).sort((a, b) => a - b);
+  const rlo = revs[0], rhi = revs[revs.length - 1], rpos = v => (lg(v) - rlo) / Math.max(rhi - rlo, 1e-9);
+  const strip = (label, ticks, me, meTxt, side, loTxt, hiTxt) => {
+    const W = 640, H = 46, P = 8, X = v => P + Math.min(Math.max(v, 0), 1) * (W - 2 * P);
+    const med = ticks.slice().sort((a, b) => a - b)[Math.floor(ticks.length / 2)];
+    return `<div class="strip"><div class="strip-l"><span>${label}</span><b>${side}</b></div>
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${label}: ${side}">
+        <line x1="${P}" x2="${W - P}" y1="30" y2="30" stroke="#e0e0e0"/>
+        ${ticks.map(v => `<line x1="${X(v).toFixed(1)}" x2="${X(v).toFixed(1)}" y1="24" y2="36" stroke="#a8a8a8" stroke-opacity=".35"/>`).join("")}
+        <line x1="${X(med)}" x2="${X(med)}" y1="20" y2="40" stroke="#525252"/>
+        ${me == null ? "" : `<circle cx="${X(me)}" cy="30" r="5" fill="#0f62fe" stroke="#fff" stroke-width="1.5"/>
+        <text x="${Math.min(Math.max(X(me), 40), W - 40)}" y="15" font-size="9.5" font-weight="600" fill="#0f62fe" text-anchor="middle">${meTxt}</text>`}
+      </svg><div class="strip-ax"><span>${loTxt}</span><span>${hiTxt}</span></div></div>`;
+  };
+  const top = p => `상위 ${Math.max(1, Math.round(100 - p))}%`;
+  const strips = strip("게임 품질", peers.map(g => g["품질_pct"] / 100), d.qp / 100, "내 게임", top(d.qp), "낮음", "높음")
+    + strip("광고비", peers.map(g => g["마케팅_pct"] / 100), d.mp == null ? null : d.mp / 100, "내 게임", d.mp == null ? "기록 없음" : d.mp < 50 ? `적게 씀 · 하위 ${Math.max(1, Math.round(d.mp))}%` : `많이 씀 · ${top(d.mp)}`, "적게 씀", "많이 씀")
+    + strip("예상 90일 매출", revs.map(v => (v - rlo) / Math.max(rhi - rlo, 1e-9)), rpos(d.cur), usd(d.cur), top(100 - revRank), kfmt(Math.pow(10, rlo)), kfmt(Math.pow(10, rhi)));
   const next = { "🟢": "광고 예산을 늘려 볼 만한 위치", "🔵": "지금 균형을 유지할 위치", "🟡": "품질부터 고칠 위치", "🔴": "광고비를 줄이고 품질부터 고칠 위치", "⚪": "광고비 기록이 없어 품질만 진단" }[d.quad];
   box.innerHTML = `<div style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:flex-start">
       <div><h2>내 게임의 위치</h2><p class="muted" style="margin-top:6px">${m.name} · ${d.f.genre} · ${d.f.mm} · ${d.ch} — 비슷한 게임(${d.ref}) ${peers.length.toLocaleString()}개와 비교 · 아래 그래프의 파란 점</p></div>
       <button class="btn" type="button" id="mineSol">처방과 예상 매출 보기 <span class="ar">→</span></button></div>
     <p style="font-size:17px">${chip(d.quad)} <span style="margin-left:6px">${QNAME[d.quad]} → <b>${next}</b></span></p>
-    <div class="mine-grid">
-      <div><span>게임 품질</span><b>${rankTxt(d.qp)}</b><span>비슷한 게임 중 (1위 = 가장 좋음)</span></div>
-      <div><span>광고비</span><b>${d.mp == null ? "–" : rankTxt(d.mp)}</b><span>${d.mp == null ? "광고비 기록 없음" : "많이 쓰는 순 (1위 = 가장 많이 씀)"}</span></div>
-      <div><span>예상 90일 매출</span><b>${usd(d.cur)}</b><span>비슷한 게임 중 상위 ${Math.max(1, Math.round(revRank))}%</span></div>
-      <div><span>등급 · 팀 점수</span><b>${d.grade}${d.score != null ? " · " + d.score.toFixed(2) : ""}</b><span>점수가 높을수록 광고비 증액 효과 기대</span></div>
-    </div>
+    <div class="strips">${strips}</div>
+    <p class="muted" style="font-size:12px">회색 눈금 = 비슷한 게임 ${peers.length.toLocaleString()}개 · 세로선 = 중간값 · 파란 점 = 내 게임 · 등급 ${d.grade}${d.score != null ? ` · 팀 점수 ${d.score.toFixed(2)}` : ""}</p>
     ${near.length ? `<div style="display:grid;gap:8px"><span class="muted" style="font-size:12px">그래프에서 가장 가까운 기존 게임 (누르면 그 게임 진단)</span><div class="mine-near">${near.map(g => `<button type="button" data-id="${g.game_id}"><span class="num">${g.game_id}</span>${chip(g["사분면"])}<span class="num">${usd(g.pred_usd)}</span></button>`).join("")}</div></div>` : ""}
     ${MINE.length > 1 ? `<div class="mine-hist"><span class="muted" style="font-size:12px;align-self:center">입력한 게임:</span>${MINE.map((x, i) => `<button type="button" data-mi="${i}" class="${i === mineIdx ? "on" : ""}">${x.name}</button>`).join("")}</div>` : ""}`;
   $("#mineSol").onclick = () => openSolution(m);
