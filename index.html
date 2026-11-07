@@ -222,6 +222,9 @@ td.rx { white-space: normal; min-width: 240px; max-width: 340px; line-height: 1.
 
 .rx-line { font-size: 17px; } .rx-line b { color: var(--accent); font-weight: 600; }
 
+button.cmp { min-height: 28px; padding: 2px 10px; font-size: 12px; white-space: nowrap; }
+button.cmp.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
 /* 보드 */
 .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border: 1px solid var(--line); }
 .tile { padding: 18px 20px; display: grid; gap: 6px; border-right: 1px solid var(--line); background: var(--bg); }
@@ -705,19 +708,20 @@ function renderList(rows) {
     rows = [...rows.slice(0, k), me, ...rows.slice(k)]; rank = k + 1; if (k >= shown) shown = k + 10;
   }
   $("#mineRank").innerHTML = rank ? `<i class="qd" style="background:var(--accent)"></i> <b>${me.game_id}</b> (내 게임) = 이 목록 ${rows.length.toLocaleString()}개 중 <b>${rank}위</b>${me["전체순위"] ? ` · 전체 신작 ${ENG.rank_n.toLocaleString()}개 중 ${me["전체순위"]}위` : ""} · 처방 시 예상 추가 매출 ${me["예상추가매출"] >= 0 ? "+" : "−"}${usd(Math.abs(me["예상추가매출"]))} · 파란 줄` : me ? `<span class="muted">내 게임은 지금 필터 조건 밖이에요</span>` : "";
-  const head = `<thead><tr><th></th><th>게임</th><th>장르</th><th>광고/IAP</th><th>사분면</th><th>등급</th><th>처방</th><th class="r">예상 추가 매출</th><th class="r">마케팅비</th><th class="r">예측 90일 매출</th><th class="r">예측 ROAS</th><th class="r">품질</th><th class="r">마케팅</th><th class="r">불균형</th><th class="r">전체 순위</th></tr></thead>`;
-  const body = rows.slice(0, shown).map(g => `<tr data-id="${g.mine ? "__mine" : g.game_id}" class="${g.mine ? "me-row" : ""}">
-    <td><input type="checkbox" aria-label="${g.game_id} 비교 선택" ${g.mine ? "checked disabled" : selected.has(g.game_id) ? "checked" : ""}></td>
+  const head = `<thead><tr><th class="r">순위</th><th>게임</th><th>장르</th><th>광고/IAP</th><th>사분면</th><th>등급</th><th>처방</th><th class="r">예상 추가 매출</th><th class="r">마케팅비</th><th class="r">예측 90일 매출</th><th class="r">예측 ROAS</th><th class="r">품질</th><th class="r">마케팅</th><th class="r">불균형</th><th class="r">전체 순위</th><th>비교</th></tr></thead>`;
+  const body = rows.slice(0, shown).map((g, i) => `<tr data-id="${g.mine ? "__mine" : g.game_id}" class="${g.mine ? "me-row" : ""}">
+    <td class="r num">${i + 1}</td>
     <td class="num">${g.game_id}${g.mine ? ' <span class="tag">내 게임</span>' : ""}</td><td>${g.genre}</td><td>${g["채널"]}</td><td>${chip(g["사분면"])}</td><td><span class="grade">${g["등급"]}</span></td>
     <td class="rx">${improveText(g)}</td><td class="r">${g["예상추가매출"] ? (g["예상추가매출"] > 0 ? "+" : "−") + usd(Math.abs(g["예상추가매출"])) : "–"}</td>
     <td class="r">${usd(g.marketing_spend_usd)}</td><td class="r">${usd(g.pred_usd)}</td><td class="r">${f1(g.roas)}</td><td class="r">${f1(g["품질_pct"])}</td><td class="r">${f1(g["마케팅_pct"])}</td>
-    <td class="r">${g["불균형"] == null ? "–" : (g["불균형"] > 0 ? "+" : "") + f1(g["불균형"])}</td><td class="r">${g.mine ? (g["전체순위"] ? g["전체순위"] + "위" : "–") : g["우선순위"] == null ? "–" : g["우선순위"] + "위"}</td></tr>`).join("");
+    <td class="r">${g["불균형"] == null ? "–" : (g["불균형"] > 0 ? "+" : "") + f1(g["불균형"])}</td><td class="r">${g.mine ? (g["전체순위"] ? g["전체순위"] + "위" : "–") : g["우선순위"] == null ? "–" : g["우선순위"] + "위"}</td>
+    <td>${g.mine ? '<span class="muted" style="font-size:12px">항상 포함</span>' : `<button type="button" class="cmp ${selected.has(g.game_id) ? "on" : ""}" data-cmp="${g.game_id}">${selected.has(g.game_id) ? "비교 중" : "+ 비교"}</button>`}</td></tr>`).join("");
   $("#list").innerHTML = head + "<tbody>" + body + "</tbody>";
   $("#more").hidden = rows.length <= shown;
   $("#list").querySelectorAll("tbody tr").forEach(tr => {
-    const id = tr.dataset.id, cb = tr.querySelector("input");
+    const id = tr.dataset.id, cb = tr.querySelector("[data-cmp]");
     if (id === "__mine") { tr.addEventListener("click", () => openSolution(MINE[mineIdx])); const box = tr.closest(".tbl"); if (box) box.scrollTop = Math.max(0, tr.offsetTop - 120); return; }
-    cb.addEventListener("click", e => { e.stopPropagation(); cb.checked ? selected.add(id) : selected.delete(id); renderBoard(false); });
+    cb.addEventListener("click", e => { e.stopPropagation(); selected.has(id) ? selected.delete(id) : selected.add(id); renderBoard(false); });
     tr.addEventListener("click", () => go("diag", id));
   });
 }
@@ -734,7 +738,7 @@ function renderCompare() {
   const sv = $("#fSort").value;
   const me = mineRow(), skip = mineSkip();
   const sel = [...selected].filter(id => id !== skip).map(id => BY[id]).filter(Boolean).concat(me ? [me] : []).sort(sortFn());
-  if (!sel.length || (me && sel.length === 1)) { $("#compare").innerHTML = `<p class="muted">${me ? "목록에서 기존 게임을 체크하면 내 게임과 나란히 비교해요." : "게임을 3개 이상 체크하면 여기서 나란히 비교해요."}</p>`; return; }
+  if (!sel.length || (me && sel.length === 1)) { $("#compare").innerHTML = `<p class="muted">${me ? "목록에서 「+ 비교」를 누르면 내 게임과 나란히 비교해요." : "목록에서 「+ 비교」로 게임을 3개 이상 담으면 여기서 나란히 비교해요."}</p>`; return; }
   $("#compare").innerHTML = `<h3>선택한 게임 비교 (${sel.length}개${sel.length < 3 ? " · 3개 이상 권장" : ""})</h3>
     <div class="tbl"><table><thead><tr><th>순위</th><th>게임</th><th>수익화 구조</th><th>사분면</th><th class="r">마케팅비</th><th class="r">품질</th><th class="r">마케팅</th><th class="r">한계 ROAS</th><th>처방</th><th class="r">예상 추가 매출</th><th class="r">실행 가능성</th></tr></thead><tbody>
     ${sel.map((g, i) => `<tr data-id="${g.mine ? "__mine" : g.game_id}" class="${g.mine ? "me-row" : ""}"><td class="num">${i + 1}</td><td class="num">${g.game_id}${g.mine ? ' <span class="tag">내 게임</span>' : ""}</td><td>${g.genre} · ${g["채널"]}</td><td>${chip(g["사분면"])}</td><td class="r">${usd(g.marketing_spend_usd)}</td><td class="r">${f1(g["품질_pct"])}</td><td class="r">${f1(g["마케팅_pct"])}</td><td class="r">${f1(g["한계roas"])}</td><td class="rx">${improveText(g)}</td><td class="r">${g["예상추가매출"] ? "+" + usd(g["예상추가매출"]) : "–"}</td><td class="r">${(FEASW[g["솔루션"]] ?? 0).toFixed(1)}</td></tr>`).join("")}
@@ -747,9 +751,9 @@ function renderBoard(resetShown = true) {
   if (resetShown) shown = 40;
   const rows = filtered();
   $("#fCount").textContent = `${rows.length.toLocaleString()}개`;
-  $("#sortNote").textContent = { team: "정렬: 처방을 실행했을 때 팀 모델이 예상하는 추가 매출이 큰 순 (유지 게임은 맨 아래) · 체크해서 비교",
-    gap: "정렬: 불균형 |품질 − 마케팅비| 큰 순 (두 축이 어긋날수록 먼저) · 체크해서 비교",
-    impact: "정렬: 예상 추가 매출 × 실행 가능성 (핫픽스 1.0 · 예산 0.9 · 업데이트 0.7 · 플레이타임 0.6, 팀 가정) · 체크해서 비교" }[$("#fSort").value];
+  $("#sortNote").textContent = { team: "정렬: 처방을 실행했을 때 팀 모델이 예상하는 추가 매출이 큰 순 (유지 게임은 맨 아래) · 「+ 비교」로 비교표에 담기",
+    gap: "정렬: 불균형 |품질 − 마케팅비| 큰 순 (두 축이 어긋날수록 먼저) · 「+ 비교」로 비교표에 담기",
+    impact: "정렬: 예상 추가 매출 × 실행 가능성 (핫픽스 1.0 · 예산 0.9 · 업데이트 0.7 · 플레이타임 0.6, 팀 가정) · 「+ 비교」로 비교표에 담기" }[$("#fSort").value];
   renderMine(); renderTiles(rows); renderScatter(rows); renderList(rows); renderCompare();
 }
 ["#fGenre", "#fChan", "#fQuad", "#fGrade", "#fSort"].forEach(s => $(s).addEventListener("change", () => renderBoard()));
