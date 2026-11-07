@@ -239,7 +239,6 @@ tbody tr { cursor: pointer; } tbody tr:hover { background: var(--layer); }
       <button class="btn ghost" id="heroDemo" type="button">시연 게임 결과 보기 <span class="ar">↓</span></button></div>
   </div>
   <div class="hero-art" aria-hidden="true">
-    <div class="hero-chart"><div id="heroChart"></div></div>
     
   </div>
 </div></section>
@@ -693,24 +692,8 @@ function paintResult() {
   IN("mkCard").onclick = () => go("cards");
   IN("tweak").onclick = () => setStep(2);
 }
-function renderHeroChart() {
-  const id = (ENG.demo || [])[0], e = EX[id], g = BY[id];
-  if (!e || !g) { IN("heroDiag").querySelector(".hero-art").hidden = true; return; }
-  const f = { genre: e.genre, mm: e.monetization_model, pub: e.publisher_tier, reg: e.region_focus, mp: e.multiplayer_support, ads: e.contains_ads === "Yes", iap: e.has_in_app_purchases === "Yes",
-    mkt: e.marketing_spend_usd, crash: e.crash_rate_pct, sess: e.avg_session_minutes, daily: e.avg_daily_sessions, upd: e.update_frequency_days, wish: e.wishlist_prelaunch, apk: e.apk_size_mb };
-  const keep = [loadedId, dirty]; loadedId = id; dirty = false;
-  const d = diagnose(f); [loadedId, dirty] = keep;
-  const s = d.sols.filter(x => x.k !== "예산" && x.ok).sort((a, b) => (b.mult - 1) * FEAS[b.k] - (a.mult - 1) * FEAS[a.k])[0];
-  if (!s) { IN("heroDiag").querySelector(".hero-art").hidden = true; return; }
-  const after = d.cur * s.mult, w = v => Math.round(v / after * 100);
-  IN("heroChart").innerHTML = `
-    <div class="ex-k">진단 예시 · ${d.ref} ${chip(d.quad)}</div>
-    <div class="ex-row"><div class="l"><span>지금 예상 90일 매출</span><b>${usd(d.cur)}</b></div><div class="ex-bar"><i style="width:${w(d.cur)}%"></i></div></div>
-    <div class="ex-row"><div class="l"><span>${s.icon} ${s.k} 처방 후</span><b class="up">${usd(after)}</b></div><div class="ex-bar up"><i style="width:100%"></i></div></div>
-    <div class="ex-foot"><span>${s.k} ${s.from}${s.unit === "%" ? "%" : ""} → ${s.to}${s.unit === "%" ? "%" : " " + s.unit} · ${PB[s.k].who.split(" (")[0]} · ${PB[s.k].weeks}</span><b class="pos">+${Math.round((s.mult - 1) * 100)}%</b></div>`;
-}
 function initDiag() {
-  fillLevels(); renderStep1(); renderHeroChart();
+  fillLevels(); renderStep1();
   IN("heroStart").onclick = () => IN("s1").scrollIntoView({ behavior: "smooth", block: "start" });
   IN("heroDemo").onclick = () => { if (ENG.demo && ENG.demo[0]) { loadExample(ENG.demo[0]); renderStep1(); setStep(3); } };
   IN("to2").onclick = () => setStep(2);
