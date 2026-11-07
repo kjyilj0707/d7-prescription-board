@@ -455,7 +455,7 @@ const TMETA = __TEAMMETA__;
 /*__TEAMJS__*/
 let TEAM_READY = false;
 fetch("model/team.bin").then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
-  .then(buf => { TEAM.load(TMETA, buf); TEAM_READY = true; if (typeof step !== "undefined" && step === 3 && !IN("v-diag").hidden) renderDiag(); })
+  .then(buf => { TEAM.load(TMETA, buf); TEAM_READY = true; setTimeout(upgradeLegacy, 0); if (typeof step !== "undefined" && step === 3 && !IN("v-diag").hidden) renderDiag(); })
   .catch(() => { TEAM_READY = false; });
 const RAW = __DATA__;
 const G = RAW.rows.map(r => Object.fromEntries(RAW.cols.map((c, i) => [c, r[i]])));
@@ -1134,11 +1134,12 @@ function saveDiags() { try { localStorage.setItem("d7diags", JSON.stringify(DIAG
 let pendingSim = null;
 const SOL_DESC = (d, k) => k === "예산" ? `광고비 ${SIM.예산.pct > 0 ? "+" : ""}${SIM.예산.pct}%`
   : k === "충돌률" ? `충돌률 ${d.crash.toFixed(2)}% → ${(+SIM[k].target).toFixed(2)}%` : k === "플레이타임" ? `플레이타임 ${Math.round(d.play)}분 → ${Math.round(SIM[k].target)}분` : `업데이트 ${Math.round(d.f.upd)}일 → ${Math.round(SIM[k].target)}일`;
-function saveDiagnosis() {
+function saveDiagnosis(silent) {
   const d = lastDiag; if (!d || d.zero) return;
   const R = simCalc(d), key = JSON.stringify(S), prev = DIAGS.find(x => x.key === key);
   const name = prev ? prev.name : (MINE.find(m => m.key === key) || {}).name || `내 게임 ${nextNo()}`;
   const id = prev ? prev.id : Math.max(Date.now(), ...DIAGS.map(r => r.id + 1));
+  const pos = prev ? DIAGS.indexOf(prev) : 0;
   if (prev) { store = store.filter(c => c.diagId !== id); DIAGS = DIAGS.filter(x => x !== prev); }
   const team = (d.recKeys || []).filter(k => R.on.includes(k)), extra = R.on.filter(k => !team.includes(k));
   const groups = [...(team.length ? [team] : []), ...extra.map(k => [k])];
@@ -1156,11 +1157,37 @@ function saveDiagnosis() {
       : `${tag}: 예상 추가 매출 = 팀모델(처방 후) − 팀모델(현재) = ${usd(after)} − ${usd(d.cur)} = ${amt(gain)} · 처방 후 = ${ks.map(step).join(" + ")}`;
     return { id: id * 10 + i, diagId: id, game: name, quad: d.quad, gain, basis, team: !!isTeam, at: new Date().toLocaleString("ko-KR"), ...c }; });
   store = [...cards, ...store]; saveStore();
-  DIAGS.unshift({ id, key, name, at: new Date().toLocaleString("ko-KR"), S: structuredClone(S), loadedId, dirty, sim: JSON.parse(JSON.stringify(SIM)),
+  DIAGS.splice(silent ? pos : 0, 0, { id, key, name, at: new Date().toLocaleString("ko-KR"), S: structuredClone(S), loadedId, dirty, sim: JSON.parse(JSON.stringify(SIM)),
     genre: d.f.genre, mm: d.f.mm, ch: d.ch, ref: d.ref, quad: d.quad, qp: d.qp, mp: d.mp, grade: d.grade, score: d.score, cur: d.cur,
     after: R.after, gain: R.gain, cost: R.cost, net: R.net, sols: R.on.map(k => ({ k, desc: SOL_DESC(d, k), gain: R.out[k].gain })), cards: cards.length });
+  if (silent) return;
   saveDiags(); renderSaved();
   toast(`${prev ? "진단을 새로 고쳐" : "진단을"} 저장했어요 · 실험카드 ${cards.length}장`);
+}
+// 예전에 저장한 카드도 수식 근거로 다시 계산 (저장해 둔 입력값·처방 선택 그대로)
+const isFormula = c => /팀모델\(처방 후\)|예상 추가 매출 = \$0|= \$[\d,]+ − \$[\d,]+/.test(c.basis || "");
+function upgradeLegacy() {
+  if (!TEAM_READY) return;
+  const old = DIAGS.filter(r => r.S && store.some(c => c.diagId === r.id && !isFormula(c)));
+  const loose = store.filter(c => !c.diagId && !isFormula(c));
+  if (!old.length && !loose.length) return;
+  const keep = { S, loadedId, dirty, SIM, lastDiag };
+  for (const r of old) {
+    try {
+      S = structuredClone(r.S); loadedId = r.loadedId; dirty = r.dirty;
+      const d = diagnose(readForm()); if (d.zero) continue;
+      d.mroas = d.f.mkt ? d.cur * (Math.pow(1.5, ENG.elasticity) - 1) / (d.f.mkt * 0.5) : null;
+      initSim(d); if (r.sim) SIM = structuredClone(r.sim); lastDiag = d;
+      saveDiagnosis(true);
+    } catch (e) {}
+  }
+  for (const c of loose) {     // 진단 기록 없이 만든 카드: 저장된 예상 효과 문장의 금액으로 수식 작성
+    const m = /\$([\d,]+) → \$([\d,]+) \(([+−-])\$([\d,]+)\)/.exec(c.효과 || "");
+    if (m) { const g = (m[3] === "+" ? 1 : -1) * +m[4].replace(/,/g, ""); c.gain = g; c.basis = `저장 당시 계산: 예상 추가 매출 = 처방 후 $${m[2]} − 현재 $${m[1]} = ${g >= 0 ? "+" : "−"}$${m[4]}`; }
+  }
+  ({ S, loadedId, dirty, SIM, lastDiag } = keep);
+  saveDiags(); saveStore(); renderSaved();
+  toast(`예전 카드 ${old.length + loose.length}건을 수식 근거로 다시 계산했어요`);
 }
 function reopenDiag(rec) {
   S = structuredClone(rec.S); if (!S.x) S.x = {}; loadedId = rec.loadedId; dirty = rec.dirty; pendingSim = rec.sim; renderStep1();
@@ -1300,7 +1327,7 @@ async function login(name, mergeLocal) {
     DIAGS = mergeLocal ? mergeById(DIAGS, rem.diags || []) : (rem.diags || []);
     store = mergeLocal ? mergeById(store, rem.cards || []) : (rem.cards || []);
     try { localStorage.setItem("d7diags", JSON.stringify(DIAGS)); localStorage.setItem("d7cards", JSON.stringify(store)); } catch (e) {}
-    renumberDiags();
+    renumberDiags(); upgradeLegacy();
     try { localStorage.setItem("d7diags", JSON.stringify(DIAGS)); localStorage.setItem("d7cards", JSON.stringify(store)); } catch (e) {}
     renderSaved(); if (location.hash.slice(1) === "cards") renderCards();
     await pushRemote();
