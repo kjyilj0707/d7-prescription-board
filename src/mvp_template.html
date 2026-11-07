@@ -230,6 +230,15 @@ tbody tr { cursor: pointer; } tbody tr:hover { background: var(--layer); }
 .gauge i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); }
 .gauge em { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--muted); left: 50%; }
 
+/* 로그인 */
+.mh-login { min-height: 30px; padding: 2px 12px; font-size: 13px; border: 1px solid var(--line-strong); background: var(--bg); cursor: pointer; }
+.mh-login:hover { background: var(--layer); }
+.sync { font-size: 12px; color: var(--faint); }
+.login-dlg { border: 1px solid var(--line); padding: 28px; width: min(440px, calc(100vw - 32px)); background: var(--bg); color: var(--ink); }
+.login-dlg::backdrop { background: rgba(22, 22, 22, .35); }
+.login-dlg form { display: grid; gap: 14px; }
+.login-dlg h2 { font-size: 24px; }
+
 /* 진단 기록 */
 .hist-top { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 24px; align-items: start; }
 .hist-plot svg { width: 100%; height: auto; display: block; }
@@ -261,8 +270,17 @@ tbody tr { cursor: pointer; } tbody tr:hover { background: var(--layer); }
 <header class="masthead"><div class="mh-in">
   <span class="logo">D7<i>·</i>처방 보드</span><span class="mh-sep"></span>
   <span class="mh-meta">출시 7일 데이터로 찾는 90일 매출 처방</span>
-  <div class="mh-right"><span>앵날다쏘 2026 · 4조</span><a href="https://github.com/kjyilj0707/d7-prescription-board" target="_blank" rel="noopener">GitHub</a></div>
+  <div class="mh-right"><span class="sync" id="syncState"></span><button type="button" class="mh-login" id="loginBtn">로그인</button><span>앵날다쏘 2026 · 4조</span><a href="https://github.com/kjyilj0707/d7-prescription-board" target="_blank" rel="noopener">GitHub</a></div>
 </div></header>
+<dialog id="loginDlg" class="login-dlg" aria-labelledby="loginTitle">
+  <form method="dialog" id="loginForm">
+    <h2 id="loginTitle">사용자 이름으로 로그인</h2>
+    <p class="muted">진단 기록과 실험카드가 이 이름으로 저장돼요. 다른 컴퓨터에서 같은 이름을 넣으면 그대로 불러와요.</p>
+    <label class="hsearch" style="min-height:48px"><input id="loginName" maxlength="40" autocomplete="username" placeholder="예: 4조" required></label>
+    <p class="muted" style="font-size:12px">발표용 간단 로그인이에요. 비밀번호가 없어서 같은 이름을 넣으면 누구나 볼 수 있어요.</p>
+    <div class="actions"><button class="primary" id="loginGo" value="ok">로그인</button><button type="button" id="loginCancel">취소</button></div>
+  </form>
+</dialog>
 <div class="subnav"><div class="sub-in"><nav class="tabs" aria-label="화면">
   <a href="#diag" data-v="diag">게임 진단</a>
   <a href="#board" data-v="board">전체 게임 비교</a>
@@ -393,7 +411,7 @@ const chip = q => QUAD[q] ? `<span class="chip c-${QUAD[q].k}"><i class="qd"></i
 const qtxt = q => QUAD[q] ? QUAD[q].name : "";
 let selected = new Set(), shown = 40, current = null;
 let store = []; try { store = JSON.parse(localStorage.getItem("d7cards") || "[]"); } catch (e) { store = []; }
-const saveStore = () => { try { localStorage.setItem("d7cards", JSON.stringify(store)); } catch (e) {} };
+function saveStore() { try { localStorage.setItem("d7cards", JSON.stringify(store)); } catch (e) {} scheduleSync(); }
 
 function toast(t) { const d = document.createElement("div"); d.className = "toast"; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 1800); }
 function opts(sel, label, vals) { sel.innerHTML = `<option value="">${label}</option>` + vals.map(v => `<option>${v}</option>`).join(""); }
@@ -870,7 +888,7 @@ function cardFromSim(d, only) {
 }
 // 진단 기록 (이 브라우저에 저장)
 let DIAGS = []; try { DIAGS = JSON.parse(localStorage.getItem("d7diags") || "[]"); } catch (e) { DIAGS = []; }
-const saveDiags = () => { try { localStorage.setItem("d7diags", JSON.stringify(DIAGS)); } catch (e) {} };
+function saveDiags() { try { localStorage.setItem("d7diags", JSON.stringify(DIAGS)); } catch (e) {} scheduleSync(); }
 let pendingSim = null;
 const SOL_DESC = (d, k) => k === "예산" ? `광고비 ${SIM.예산.pct > 0 ? "+" : ""}${SIM.예산.pct}%`
   : k === "충돌률" ? `충돌률 ${d.crash.toFixed(2)}% → ${(+SIM[k].target).toFixed(2)}%` : k === "플레이타임" ? `플레이타임 ${Math.round(d.play)}분 → ${Math.round(SIM[k].target)}분` : `업데이트 ${Math.round(d.f.upd)}일 → ${Math.round(SIM[k].target)}일`;
@@ -990,7 +1008,55 @@ $("#foot").innerHTML = `용어: 게임 품질 = 광고비를 빼고 D7 지표만
   처방 효과 = 팀 품질 모델 계수 · 광고비 탄력성 0.555 · 처방 비용 = 팀 가정값(화면에서 수정) · 유형 = 품질·광고비 순위 50 기준 · 등급(대회 요구) = 두 순위 차이 55 이상 고, 30 이상 중 ·
   train 사후 검증: 기회 유형 실제 광고비 1달러당 매출 33.8달러 vs 위험 유형 3.3달러, 우선순위 점수와 실제 효율 상관 0.79 · 합성 데이터(교육용) · 모든 예상치는 상관 기반이며 인과 효과가 아님 · 실험카드는 이 브라우저에 저장`;
 window.addEventListener("hashchange", () => show(location.hash.slice(1)));
+// ---------- 로그인 · 온라인 저장 (발표용: 사용자 이름만으로 구분) ----------
+const SB_URL = "https://arqruewigqgzbmlsgjad.supabase.co/rest/v1/d7_board_store";
+const SB_KEY = "sb_publishable_d3_p7eyo_DVHwgFvXXMbqw_Z1Pngu2j";
+const SB_H = { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY, "Content-Type": "application/json" };
+let USER = null, syncTimer = null;
+try { USER = localStorage.getItem("d7user"); } catch (e) {}
+const setSync = txt => { IN("syncState").textContent = txt; };
+function paintLogin() { IN("loginBtn").textContent = USER ? `${USER} · 로그아웃` : "로그인"; if (!USER) setSync("이 브라우저에만 저장"); }
+function scheduleSync() { if (!USER) return; clearTimeout(syncTimer); setSync("저장 중…"); syncTimer = setTimeout(pushRemote, 600); }
+async function pushRemote() {
+  if (!USER) return;
+  try {
+    const r = await fetch(SB_URL + "?on_conflict=username", { method: "POST", headers: { ...SB_H, Prefer: "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify({ username: USER, diags: DIAGS, cards: store, updated_at: new Date().toISOString() }) });
+    if (!r.ok) throw new Error(r.status);
+    setSync(`온라인 저장됨 · ${new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}`);
+  } catch (e) { setSync("온라인 저장 실패 · 이 브라우저에는 저장됨"); }
+}
+async function pullRemote() {
+  const r = await fetch(`${SB_URL}?username=eq.${encodeURIComponent(USER)}&select=diags,cards`, { headers: SB_H });
+  if (!r.ok) throw new Error(r.status);
+  return (await r.json())[0] || { diags: [], cards: [] };
+}
+const mergeById = (a, b) => { const m = new Map(); [...b, ...a].forEach(x => m.set(String(x.id), x)); return [...m.values()].sort((x, y) => y.id - x.id); };
+async function login(name, mergeLocal) {
+  USER = name; try { localStorage.setItem("d7user", name); } catch (e) {}
+  paintLogin(); setSync("불러오는 중…");
+  try {
+    const rem = await pullRemote();
+    DIAGS = mergeLocal ? mergeById(DIAGS, rem.diags || []) : (rem.diags || []);
+    store = mergeLocal ? mergeById(store, rem.cards || []) : (rem.cards || []);
+    try { localStorage.setItem("d7diags", JSON.stringify(DIAGS)); localStorage.setItem("d7cards", JSON.stringify(store)); } catch (e) {}
+    renderSaved(); if (location.hash.slice(1) === "cards") renderCards();
+    await pushRemote();
+    toast(`${name}님 기록 ${DIAGS.length}개를 불러왔어요`);
+  } catch (e) { setSync("온라인 연결 실패 · 이 브라우저에만 저장"); }
+}
+function logout() {
+  USER = null; try { localStorage.removeItem("d7user"); localStorage.removeItem("d7diags"); localStorage.removeItem("d7cards"); } catch (e) {}
+  DIAGS = []; store = []; renderSaved(); if (location.hash.slice(1) === "cards") renderCards(); paintLogin(); toast("로그아웃했어요 · 기록은 온라인에 남아 있어요");
+}
+IN("loginBtn").onclick = () => { if (USER) { logout(); return; } IN("loginName").value = ""; IN("loginDlg").showModal(); IN("loginName").focus(); };
+IN("loginCancel").onclick = () => IN("loginDlg").close();
+IN("loginForm").addEventListener("submit", e => { const n = IN("loginName").value.trim(); if (!n) { e.preventDefault(); return; }
+  const hadLocal = DIAGS.length + store.length > 0; login(n, hadLocal); });
+
 initDiag();
 renderSaved();
+paintLogin();
+if (USER) login(USER, true);
 show(location.hash.slice(1) || "diag");
 </script>
