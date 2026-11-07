@@ -218,6 +218,10 @@ details.pb ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px; }
 tr.me-row td { background: var(--accent-soft); } tr.me-row td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .tag { font-family: var(--font); }
 
+td.rx { white-space: normal; min-width: 240px; max-width: 340px; line-height: 1.45; }
+
+.rx-line { font-size: 17px; } .rx-line b { color: var(--accent); font-weight: 600; }
+
 /* 보드 */
 .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border: 1px solid var(--line); }
 .tile { padding: 18px 20px; display: grid; gap: 6px; border-right: 1px solid var(--line); background: var(--bg); }
@@ -548,13 +552,23 @@ function filtered() {
   return G.filter(g => (!ge || g.genre === ge) && (!ch || g.monetization_model === ch) && (!qu || g["사분면"] === qu) && (!gr || g["등급"] === gr) && (!id || g.game_id.includes(id)))
     .sort(sortFn());
 }
+// 처방 문장 (팀 결과 JSON의 처방 구조 → "광고비를 줄이고, 충돌률을 2.46%로 낮추세요")
 function improveText(g) {
-  const s = g["솔루션"];
-  if (s === "충돌률") return `충돌률 ${(+g.crash_rate_pct).toFixed(2)}% → ${(+g.med_crash_rate_pct).toFixed(2)}%`;
-  if (s === "플레이타임") return `플레이타임 ${Math.round(g.playtime)}분 → ${Math.round(g.med_playtime)}분`;
-  if (s === "업데이트") return `업데이트 ${Math.round(g.update_frequency_days)}일 → ${Math.round(g.med_update_frequency_days)}일`;
-  if (s === "예산") return `마케팅비 ${usd(g.marketing_spend_usd)} → ${usd(g.marketing_spend_usd * 1.5)}`;
-  return "유지";
+  const s = g["솔루션"], q = g["사분면"], mk = g.marketing_spend_usd;
+  const cut = q === "🔴" && mk ? `광고비를 ${usd(mk)}에서 ${usd(mk * (1 - (ENG.cut || 0.3)))}로 30% 줄이고` : "";
+  let lever = "";
+  if (s === "충돌률") lever = `충돌률을 ${(+g.crash_rate_pct).toFixed(2)}%에서 ${(+g.med_crash_rate_pct).toFixed(2)}%로 낮추세요`;
+  else if (s === "플레이타임") lever = `하루 플레이타임을 ${Math.round(g.playtime)}분에서 ${Math.round(g.med_playtime)}분으로 늘리세요`;
+  else if (s === "업데이트") lever = `업데이트 간격을 ${Math.round(g.update_frequency_days)}일에서 ${Math.round(g.med_update_frequency_days)}일로 줄이세요`;
+  else if (s === "예산") return `광고비를 ${usd(mk)}에서 ${usd(mk * 1.5)}로 50% 늘리세요`;
+  else if (q === "🔴" && mk) return `광고비를 ${usd(mk)}에서 ${usd(mk * (1 - (ENG.cut || 0.3)))}로 30% 줄이세요`;
+  else return g["한계roas"] != null && g["한계roas"] < 1 ? "지금 상태를 유지하고, 광고비 축소를 검토하세요" : "지금 품질과 광고비를 유지하세요";
+  return cut ? `${cut}, ${lever}` : lever;
+}
+function diagRow(d) {   // 진단 결과를 목록 행과 같은 모양으로
+  const f = d.f;
+  return { "솔루션": d.rec ? d.rec.k : "유지", "사분면": d.quad, marketing_spend_usd: f.mkt > 0 ? f.mkt : null, "한계roas": d.mroas,
+    crash_rate_pct: d.crash, med_crash_rate_pct: d.C.crash, playtime: d.play, med_playtime: d.C.play, update_frequency_days: f.upd, med_update_frequency_days: d.C.upd };
 }
 function solText(g) {
   const s = g["솔루션"], L = LEVER[s] || {};
@@ -628,6 +642,7 @@ function renderMine() {
       <div><h2>내 게임의 위치</h2><p class="muted" style="margin-top:6px">${m.name} · ${d.f.genre} · ${d.f.mm} · ${d.ch} — 비슷한 게임(${d.ref}) ${peers.length.toLocaleString()}개와 비교 · 아래 그래프의 파란 점</p></div>
       <button class="btn" type="button" id="mineSol">처방과 예상 매출 보기 <span class="ar">→</span></button></div>
     <p style="font-size:17px">${chip(d.quad)} <span style="margin-left:6px">${QNAME[d.quad]} → <b>${next}</b></span></p>
+    <p class="rx-line">처방 · <b>${improveText(diagRow(d))}</b></p>
     <div class="strips">${strips}</div>
     <p class="muted" style="font-size:12px">회색 눈금 = 비슷한 게임 ${peers.length.toLocaleString()}개 · 세로선 = 중간값 · 파란 점 = 내 게임 · 등급 ${d.grade}${d.prio != null ? ` · 처방 시 예상 추가 매출 ${d.prio >= 0 ? "+" : "−"}${usd(Math.abs(d.prio))} (팀 모델)` : ""}</p>
     ${near.length ? `<div style="display:grid;gap:8px"><span class="muted" style="font-size:12px">그래프에서 가장 가까운 기존 게임 (누르면 그 게임 진단)</span><div class="mine-near">${near.map(g => `<button type="button" data-id="${g.game_id}"><span class="num">${g.game_id}</span>${chip(g["사분면"])}<span class="num">${usd(g.pred_usd)}</span></button>`).join("")}</div></div>` : ""}
@@ -690,11 +705,11 @@ function renderList(rows) {
     rows = [...rows.slice(0, k), me, ...rows.slice(k)]; rank = k + 1; if (k >= shown) shown = k + 10;
   }
   $("#mineRank").innerHTML = rank ? `<i class="qd" style="background:var(--accent)"></i> <b>${me.game_id}</b> (내 게임) = 이 목록 ${rows.length.toLocaleString()}개 중 <b>${rank}위</b>${me["전체순위"] ? ` · 전체 신작 ${ENG.rank_n.toLocaleString()}개 중 ${me["전체순위"]}위` : ""} · 처방 시 예상 추가 매출 ${me["예상추가매출"] >= 0 ? "+" : "−"}${usd(Math.abs(me["예상추가매출"]))} · 파란 줄` : me ? `<span class="muted">내 게임은 지금 필터 조건 밖이에요</span>` : "";
-  const head = `<thead><tr><th></th><th>게임</th><th>장르</th><th>광고/IAP</th><th>사분면</th><th>등급</th><th>처방 (현재 → 셀 중앙값)</th><th class="r">예상 추가 매출</th><th class="r">마케팅비</th><th class="r">예측 90일 매출</th><th class="r">예측 ROAS</th><th class="r">품질</th><th class="r">마케팅</th><th class="r">불균형</th><th class="r">전체 순위</th></tr></thead>`;
+  const head = `<thead><tr><th></th><th>게임</th><th>장르</th><th>광고/IAP</th><th>사분면</th><th>등급</th><th>처방</th><th class="r">예상 추가 매출</th><th class="r">마케팅비</th><th class="r">예측 90일 매출</th><th class="r">예측 ROAS</th><th class="r">품질</th><th class="r">마케팅</th><th class="r">불균형</th><th class="r">전체 순위</th></tr></thead>`;
   const body = rows.slice(0, shown).map(g => `<tr data-id="${g.mine ? "__mine" : g.game_id}" class="${g.mine ? "me-row" : ""}">
     <td><input type="checkbox" aria-label="${g.game_id} 비교 선택" ${g.mine ? "checked disabled" : selected.has(g.game_id) ? "checked" : ""}></td>
     <td class="num">${g.game_id}${g.mine ? ' <span class="tag">내 게임</span>' : ""}</td><td>${g.genre}</td><td>${g["채널"]}</td><td>${chip(g["사분면"])}</td><td><span class="grade">${g["등급"]}</span></td>
-    <td>${improveText(g)}</td><td class="r">${g["예상추가매출"] ? "+" + usd(g["예상추가매출"]) : "–"}</td>
+    <td class="rx">${improveText(g)}</td><td class="r">${g["예상추가매출"] ? (g["예상추가매출"] > 0 ? "+" : "−") + usd(Math.abs(g["예상추가매출"])) : "–"}</td>
     <td class="r">${usd(g.marketing_spend_usd)}</td><td class="r">${usd(g.pred_usd)}</td><td class="r">${f1(g.roas)}</td><td class="r">${f1(g["품질_pct"])}</td><td class="r">${f1(g["마케팅_pct"])}</td>
     <td class="r">${g["불균형"] == null ? "–" : (g["불균형"] > 0 ? "+" : "") + f1(g["불균형"])}</td><td class="r">${g.mine ? (g["전체순위"] ? g["전체순위"] + "위" : "–") : g["우선순위"] == null ? "–" : g["우선순위"] + "위"}</td></tr>`).join("");
   $("#list").innerHTML = head + "<tbody>" + body + "</tbody>";
@@ -721,8 +736,8 @@ function renderCompare() {
   const sel = [...selected].filter(id => id !== skip).map(id => BY[id]).filter(Boolean).concat(me ? [me] : []).sort(sortFn());
   if (!sel.length || (me && sel.length === 1)) { $("#compare").innerHTML = `<p class="muted">${me ? "목록에서 기존 게임을 체크하면 내 게임과 나란히 비교해요." : "게임을 3개 이상 체크하면 여기서 나란히 비교해요."}</p>`; return; }
   $("#compare").innerHTML = `<h3>선택한 게임 비교 (${sel.length}개${sel.length < 3 ? " · 3개 이상 권장" : ""})</h3>
-    <div class="tbl"><table><thead><tr><th>순위</th><th>게임</th><th>수익화 구조</th><th>사분면</th><th class="r">마케팅비</th><th class="r">품질</th><th class="r">마케팅</th><th class="r">한계 ROAS</th><th>처방 (현재 → 목표)</th><th class="r">예상 추가 매출</th><th class="r">실행 가능성</th></tr></thead><tbody>
-    ${sel.map((g, i) => `<tr data-id="${g.mine ? "__mine" : g.game_id}" class="${g.mine ? "me-row" : ""}"><td class="num">${i + 1}</td><td class="num">${g.game_id}${g.mine ? ' <span class="tag">내 게임</span>' : ""}</td><td>${g.genre} · ${g["채널"]}</td><td>${chip(g["사분면"])}</td><td class="r">${usd(g.marketing_spend_usd)}</td><td class="r">${f1(g["품질_pct"])}</td><td class="r">${f1(g["마케팅_pct"])}</td><td class="r">${f1(g["한계roas"])}</td><td>${improveText(g)}</td><td class="r">${g["예상추가매출"] ? "+" + usd(g["예상추가매출"]) : "–"}</td><td class="r">${(FEASW[g["솔루션"]] ?? 0).toFixed(1)}</td></tr>`).join("")}
+    <div class="tbl"><table><thead><tr><th>순위</th><th>게임</th><th>수익화 구조</th><th>사분면</th><th class="r">마케팅비</th><th class="r">품질</th><th class="r">마케팅</th><th class="r">한계 ROAS</th><th>처방</th><th class="r">예상 추가 매출</th><th class="r">실행 가능성</th></tr></thead><tbody>
+    ${sel.map((g, i) => `<tr data-id="${g.mine ? "__mine" : g.game_id}" class="${g.mine ? "me-row" : ""}"><td class="num">${i + 1}</td><td class="num">${g.game_id}${g.mine ? ' <span class="tag">내 게임</span>' : ""}</td><td>${g.genre} · ${g["채널"]}</td><td>${chip(g["사분면"])}</td><td class="r">${usd(g.marketing_spend_usd)}</td><td class="r">${f1(g["품질_pct"])}</td><td class="r">${f1(g["마케팅_pct"])}</td><td class="r">${f1(g["한계roas"])}</td><td class="rx">${improveText(g)}</td><td class="r">${g["예상추가매출"] ? "+" + usd(g["예상추가매출"]) : "–"}</td><td class="r">${(FEASW[g["솔루션"]] ?? 0).toFixed(1)}</td></tr>`).join("")}
     </tbody></table></div><p class="muted" style="font-size:12px">순위 기준: ${{ team: "처방 시 예상 추가 매출(팀 모델)", gap: "심각성(품질·마케팅비 불균형)", impact: "영향도(예상 추가 매출) × 실행 가능성" }[sv]}</p><ol class="reason">${sel.map(g => `<li>${reasonOf(g)}</li>`).join("")}</ol>
     <div><button id="clearSel">선택 해제</button></div>`;
   $("#compare").querySelectorAll("tbody tr").forEach(tr => tr.addEventListener("click", () => tr.dataset.id === "__mine" ? openSolution(MINE[mineIdx]) : go("diag", tr.dataset.id)));
@@ -1080,8 +1095,9 @@ function paintResult() {
   const kpi = (lab, v, sub) => `<div class="kpi"><small>${lab}</small><b>${v}</b><small>${sub || ""}</small></div>`;
   IN("result").innerHTML = `
     <div class="hero">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${chip(d.quad)}<span class="muted">${QNAME[d.quad]} · 등급 ${d.grade}${d.score != null ? ` · 우선순위 점수 ${d.score.toFixed(3)}` : ""}</span></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${chip(d.quad)}<span class="muted">${QNAME[d.quad]} · 등급 ${d.grade}${d.prio != null ? ` · 우선순위 전체 신작 ${ENG.rank_n.toLocaleString()}개 중 ${G.filter(g => g["우선순위"] != null && g.game_id !== (loadedId && !dirty ? loadedId : null) && (g["예상추가매출"] || 0) > d.prio).length + 1}위` : " · 우선순위 대상 아님(유지)"}</span></div>
       <p class="verdict">${verdictOf(d)}</p>
+      <p class="rx-line">처방 · <b>${improveText(diagRow(d))}</b>${d.prio != null ? ` <span class="muted">(예상 90일 매출 ${d.prio >= 0 ? "+" : "−"}${usd(Math.abs(d.prio))})</span>` : ""}</p>
       <div class="flow"><span class="muted">지금 예상 90일 매출</span><span class="now">${usd(d.cur)}</span>
         ${R.on.length ? `<span class="arrow">→</span><span class="muted">선택한 처방 ${R.on.length}개 적용 시</span><span class="after">${usd(R.after)}</span>
         <span class="delta ${R.gain >= 0 ? "" : "neg"}">${R.gain >= 0 ? "+" : "−"}${usd(Math.abs(R.gain))}</span>` : `<span class="muted">· 아래에서 처방을 골라 보세요</span>`}</div>
