@@ -154,6 +154,11 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 details.pb { font-size: 14px; } details.pb summary { cursor: pointer; color: var(--accent); }
 details.pb ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px; }
 .tag { font-size: 11px; font-weight: 500; color: var(--on-accent); background: var(--accent); padding: 2px 8px; margin-left: 8px; letter-spacing: .03em; }
+.forest svg { width: 100%; height: auto; display: block; }
+.forest .read { font-size: 14px; color: var(--muted); display: grid; gap: 4px; }
+.forest .read b { color: var(--ink); font-weight: 600; }
+.legend2 { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12px; color: var(--muted); }
+.legend2 i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
 .levers { display: grid; gap: 14px; }
 .lever { display: grid; grid-template-columns: 150px minmax(0, 1fr) 90px; gap: 14px; align-items: center; }
 .bars { display: grid; gap: 4px; }
@@ -622,6 +627,53 @@ function renderDiag() {
   d.mroas = d.f.mkt ? d.cur * (Math.pow(1.5, ENG.elasticity) - 1) / (d.f.mkt * 0.5) : null;
   initSim(d); paintResult();
 }
+function normCdf(z) { const t = 1 / (1 + .2316419 * Math.abs(z)), d = .3989423 * Math.exp(-z * z / 2);
+  const p = d * t * (.3193815 + t * (-.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return z > 0 ? 1 - p : p; }
+function featureEffects(d) {
+  const ST = ENG.coef_stats, cq = ENG.coefq, cf = ENG.coeff, C = d.C, f = d.f, g = "pt*" + f.genre, pk = "mk*" + f.pub;
+  const L = [];
+  const add = (name, rx, cur, med, fmt, dx, b, v) => { if (!(dx === dx) || med == null) return; L.push({ name, rx, cur, med, fmt, eff: b * dx, se: Math.abs(dx) * Math.sqrt(v), p: 2 * (1 - normCdf(Math.abs(b) / Math.sqrt(v))) }); };
+  if (f.mkt) { const b = cf.lmk + (cf[pk] || 0), v = ST.f.lmk.var + (ST.f[pk] ? ST.f[pk].var + 2 * ST.f[pk].cov_lmk : 0);
+    add("광고비", true, f.mkt, C.mkt, usd, Math.log(f.mkt) - Math.log(C.mkt), b, v); }
+  { const b = cq.lpt + (cq[g] || 0), v = ST.q.lpt.var + (ST.q[g] ? ST.q[g].var + 2 * ST.q[g].cov_lpt : 0);
+    add("하루 플레이타임", true, d.play, C.play, x => Math.round(x) + "분", Math.log(d.play) - Math.log(C.play), b, v); }
+  add("충돌률", true, d.crash, C.crash, x => x.toFixed(2) + "%", d.crash - C.crash, cq.crash, ST.q.crash.var);
+  add("업데이트 간격", true, f.upd, C.upd, x => Math.round(x) + "일", f.upd - C.upd, cq.upd, ST.q.upd.var);
+  add("세션 길이", false, f.sess, C.sess, x => x.toFixed(1) + "분", Math.log(f.sess) - Math.log(C.sess), cq.lsm, ST.q.lsm.var);
+  add("출시 전 위시리스트", false, f.wish, C.wish, x => Math.round(x).toLocaleString() + "건", Math.log(f.wish) - Math.log(C.wish), cq.lwl, ST.q.lwl.var);
+  add("앱 용량", false, f.apk, C.apk, x => Math.round(x).toLocaleString() + "MB", Math.log(f.apk) - Math.log(C.apk), cq.lapk, ST.q.lapk.var);
+  const tot = L.reduce((s, x) => s + Math.abs(x.eff), 0) || 1;
+  L.forEach(x => { x.share = Math.abs(x.eff) / tot; x.pct = Math.exp(x.eff) - 1; x.lo = Math.exp(x.eff - 1.96 * x.se) - 1; x.hi = Math.exp(x.eff + 1.96 * x.se) - 1;
+    x.sig = x.p < 0.05 && Math.abs(x.pct) >= 0.005; x.col = !x.sig ? "#a8a8a8" : x.pct > 0 ? "#0f62fe" : "#e8663d"; x.lineCol = !x.sig ? "#d0d0d0" : x.pct > 0 ? "#8fb5ff" : "#f2a98e"; });
+  return L.sort((a, b) => Math.abs(b.eff) - Math.abs(a.eff));
+}
+function forestHtml(d) {
+  const L = featureEffects(d); if (!L.length) return "";
+  const W = 820, rowH = 40, top = 28, H = top + L.length * rowH + 30, x0 = 250, x1 = 590;
+  const m = Math.max(.15, ...L.map(r => Math.max(Math.abs(r.eff - 1.96 * r.se), Math.abs(r.eff + 1.96 * r.se)))) * 1.08;
+  const X = e => x0 + (Math.max(-m, Math.min(m, e)) + m) / (2 * m) * (x1 - x0), pf = v => `${v >= 0 ? "+" : "−"}${Math.abs(Math.round(v * 100))}%`;
+  const pTxt = p => p < .001 ? "p<0.001" : "p " + p.toFixed(3);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="피처별로 이 게임의 값이 비슷한 게임 중간값과 다른 만큼 예상 매출이 몇 퍼센트 달라지는지">
+    <line x1="${X(0)}" x2="${X(0)}" y1="${top - 14}" y2="${H - 22}" stroke="#525252" stroke-width="1"/>
+    <text x="${X(0)}" y="${top - 18}" font-size="11" fill="#6f6f6f" text-anchor="middle">비슷한 게임 중간값 기준 (0%)</text>
+    <text x="${X(-m) }" y="${H - 6}" font-size="11" fill="#6f6f6f">← 매출을 낮춤</text><text x="${X(m)}" y="${H - 6}" font-size="11" fill="#6f6f6f" text-anchor="end">매출을 높임 →</text>`;
+  L.forEach((r, i) => { const y = top + i * rowH + rowH / 2;
+    if (i) s += `<line x1="0" x2="${W}" y1="${y - rowH / 2}" y2="${y - rowH / 2}" stroke="#f0f0f0"/>`;
+    s += `<text x="0" y="${y - 3}" font-size="14" fill="#161616">${r.name}${r.rx ? ' <tspan font-size="10" fill="#0f62fe"> 처방 가능</tspan>' : ""}</text>
+      <text x="0" y="${y + 13}" font-size="11" fill="#6f6f6f">이 게임 ${r.fmt(r.cur)} · 중간값 ${r.fmt(r.med)}</text>
+      <line x1="${X(r.eff - 1.96 * r.se)}" x2="${X(r.eff + 1.96 * r.se)}" y1="${y}" y2="${y}" stroke="${r.lineCol}" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="${X(r.eff)}" cy="${y}" r="7" fill="${r.col}"/>
+      <text x="${x1 + 18}" y="${y + 5}" font-size="14" fill="#393939">${Math.abs(r.pct) < 0.005 ? `<tspan fill="#6f6f6f">중간값과 같음</tspan>` : `<tspan font-weight="600" fill="${r.sig ? r.col : "#6f6f6f"}">${pf(r.pct)}</tspan>  ${pTxt(r.p)}  · 비중 ${Math.round(r.share * 100)}%`}</text>`; });
+  s += "</svg>";
+  const worstRx = L.filter(r => r.rx && r.sig && r.pct < 0)[0], bestAll = L[0];
+  return `<div class="panel forest"><div class="actions" style="justify-content:space-between"><h2>피처별 영향</h2>
+      <div class="legend2"><span><i style="background:#0f62fe"></i>매출을 높임</span><span><i style="background:#e8663d"></i>매출을 낮춤</span><span><i style="background:#a8a8a8"></i>통계적으로 뚜렷하지 않음</span></div></div>
+    <p class="muted" style="font-size:13px">이 게임의 각 지표가 비슷한 게임(${d.ref}) 중간값과 다른 만큼, 예상 90일 매출이 몇 % 달라지는지예요. 점 = 추정값, 선 = 95% 범위, 비중 = 전체 차이 중 그 지표의 몫.</p>
+    ${s}
+    <div class="read"><span>매출 차이에 가장 크게 작용하는 지표: <b>${bestAll.name} (${pf(bestAll.pct)}, 비중 ${Math.round(bestAll.share * 100)}%)</b></span>
+      ${worstRx ? `<span>처방할 수 있는 지표 중 매출을 가장 많이 깎는 것: <b>${worstRx.name} (${pf(worstRx.pct)})</b> → 아래 시뮬레이터에서 목표를 바꿔 보세요</span>` : `<span>처방할 수 있는 지표 중 매출을 뚜렷하게 깎는 것은 없어요</span>`}
+      <span class="src">광고비는 팀 매출 모델, 나머지는 팀 품질 모델(광고비 제외) 계수 기준 · 상관 기반 추정이며 인과 효과가 아님</span></div></div>`;
+}
 function paintResult() {
   const d = lastDiag, R = simCalc(d), M = { crash: d.C.crash, playtime: d.C.play, update: d.C.upd };
   const srcTxt = d.exact ? "팀 최종 모델(CV RMSLE 0.6741) 예측" : "팀 내부 회귀 모델(광고비 포함) 예측";
@@ -663,15 +715,11 @@ function paintResult() {
       ${kpi("광고비 1달러당 매출", roas == null ? "–" : "$" + f1(roas), `비슷한 게임 $${f1(d.C.roas)}`)}
       ${kpi("광고비를 더 쓰면 1달러당", d.mroas == null ? "–" : "$" + f1(d.mroas), d.mroas != null && d.mroas < 1 ? "1달러 미만 → 증액 비효율" : "추가 1달러가 버는 매출")}
     </div>
+    ${forestHtml(d)}
     <div class="panel"><div class="actions" style="justify-content:space-between"><h2>처방 시뮬레이터</h2><span class="muted" style="font-size:12px">체크한 처방을 함께 적용 · 목표와 비용을 바꾸면 바로 다시 계산</span></div>
       <div class="sols">${rows}</div>
       <div class="actions"><button class="primary" id="mkCard">선택한 처방으로 실험카드 만들기</button><button id="tweak">지표 바꿔서 다시 보기</button></div></div>
-    <div class="panel"><h2>왜 이런 진단인가</h2>
-      <p class="muted" style="font-size:13px">비교 대상: ${d.ref} 게임 ${d.C.n.toLocaleString()}개${d.C.n < 100 ? " (표본 적음)" : ""} · 게임 품질 = 광고비를 빼고 D7 지표만으로 예상한 매출을 비슷한 게임끼리 줄 세운 순위</p>
-      <div class="levers">${[["💥 충돌률", d.crash, M.crash, v => v.toFixed(2) + "%", d.crash > M.crash], ["🕐 하루 플레이타임", d.play, M.playtime, v => Math.round(v) + "분", d.play < M.playtime], ["🔄 업데이트 간격", d.f.upd, M.update, v => Math.round(v) + "일", d.f.upd > M.update]].map(([lab, v, m, fmt, bad]) => { const mx = Math.max(v, m) * 1.15 || 1; return `<div class="lever"><b>${lab}</b><div class="bars">
-        <div class="bar"><span>이 게임</span><span class="b" style="width:${v / mx * 100}%;background:${bad ? "var(--q-red)" : "var(--accent)"}"></span><span class="v">${fmt(v)}</span></div>
-        <div class="bar"><span>중간값</span><span class="b" style="width:${m / mx * 100}%;background:var(--q-gray)"></span><span class="v">${fmt(m)}</span></div></div><span>${bad ? '<span class="neg">개선 여지</span>' : '<span class="muted">양호</span>'}</span></div>`; }).join("")}</div>
-    </div>`;
+</div>`;
   IN("result").querySelectorAll("[data-on]").forEach(c => c.onchange = () => { SIM[c.dataset.on].on = c.checked; paintResult(); });
   IN("result").querySelectorAll("[data-cost]").forEach(i => i.onchange = () => { const v = parseFloat(i.value); if (Number.isFinite(v) && v >= 0) { SIM[i.dataset.cost].cost = v; paintResult(); } });
   IN("result").querySelectorAll("[data-tgt]").forEach(r => { r.onchange = () => { const k = r.dataset.tgt; if (k === "예산") SIM[k].pct = +r.value; else SIM[k].target = +r.value; SIM[k].on = true; paintResult(); };
