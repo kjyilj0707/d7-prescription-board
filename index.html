@@ -1244,10 +1244,12 @@ function saveDiagnosis() {
     const c = ks.length ? cardFromSim(d, ks) : cardFromSim(d); c.대상 = c.대상.replace(/^[^·]+/, name + " ");
     const gain = ks.length ? Math.round((ks.length > 1 ? teamAfter(d, ks) : d.cur * R.out[ks[0]].mult) - d.cur) : 0;
     const isTeam = ks.length && ks.every(k => team.includes(k));
-    const basis = !ks.length ? "유지 처방 · 추가 매출 없음"
-      : isTeam && ks.length > 1 ? `팀 기준 처방 묶음 · ${ks.map(k => `${k === "예산" ? `광고비 ${SIM.예산.pct > 0 ? "+" : ""}${SIM.예산.pct}%` : k + " 개선"} ${amt(R.out[k].gain)}`).join(", ")} → 함께 실행 시 팀 모델 예상`
-      : isTeam ? `팀 기준 처방 · ${ks[0] === "예산" ? `광고비 ${SIM.예산.pct > 0 ? "+" : ""}${SIM.예산.pct}%를` : `${ks[0]}을 목표값으로 바꿔`} 팀 모델로 다시 예측한 추가 매출`
-      : `직접 추가한 처방(팀 기준 외) · ${ks[0] === "예산" ? `광고비 ${SIM.예산.pct > 0 ? "+" : ""}${SIM.예산.pct}%` : ks[0] + " 개선"}만 실행 시 팀 모델 예상`;
+    const after = d.cur + gain;
+    const step = k => k === "충돌률" ? `충돌률 ${d.crash.toFixed(2)}%→${(+SIM[k].target).toFixed(2)}%` : k === "플레이타임" ? `하루 플레이타임 ${Math.round(d.play)}분→${Math.round(SIM[k].target)}분`
+      : k === "업데이트" ? `업데이트 간격 ${Math.round(d.f.upd)}일→${Math.round(SIM[k].target)}일` : `광고비 ${usd(d.f.mkt)}→${usd(d.f.mkt * (1 + SIM.예산.pct / 100))}`;
+    const tag = !ks.length ? "유지" : isTeam ? (ks.length > 1 ? "팀 기준 처방 묶음" : "팀 기준 처방") : "직접 추가한 처방(팀 기준 외)";
+    const basis = !ks.length ? "유지: 예상 추가 매출 = $0"
+      : `${tag}: 예상 추가 매출 = 팀모델(처방 후) − 팀모델(현재) = ${usd(after)} − ${usd(d.cur)} = ${amt(gain)} · 처방 후 = ${ks.map(step).join(" + ")}`;
     return { id: id * 10 + i, diagId: id, game: name, quad: d.quad, gain, basis, team: !!isTeam, at: new Date().toLocaleString("ko-KR"), ...c }; });
   store = [...cards, ...store]; saveStore();
   DIAGS.unshift({ id, key, name, at: new Date().toLocaleString("ko-KR"), S: structuredClone(S), loadedId, dirty, sim: JSON.parse(JSON.stringify(SIM)),
